@@ -264,6 +264,20 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     playClickSound();
     triggerVibrate(8);
     addTypedChar(char);
+
+    // Fala a letra/número pressionado
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(char.toLowerCase());
+      utterance.lang = 'pt-BR';
+      utterance.rate = speechRate;
+      const voices = window.speechSynthesis.getVoices();
+      const ptVoice = voices.find(
+        (v) => v.lang.toLowerCase() === 'pt-br' || v.lang.toLowerCase().replace('_', '-') === 'pt-br'
+      );
+      if (ptVoice) utterance.voice = ptVoice;
+      window.speechSynthesis.speak(utterance);
+    }
   };
 
   const handleKeyBackspace = () => {
