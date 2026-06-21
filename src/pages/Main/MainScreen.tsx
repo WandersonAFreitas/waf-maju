@@ -348,14 +348,6 @@ export const MainScreen: React.FC<MainScreenProps> = ({
             <Volume2 size={22} />
             <span>Falar</span>
           </SafeTouch>
-
-          {/* Botão Configurações (Laranja) */}
-          <SafeTouch
-            onClick={handleSettingsClick}
-            className="flex items-center justify-center bg-white border-2 border-orange-200 text-[#944a00] hover:bg-orange-50 rounded-xl w-14 h-14"
-          >
-            <Settings size={28} />
-          </SafeTouch>
         </div>
       </header>
 
@@ -481,11 +473,11 @@ export const MainScreen: React.FC<MainScreenProps> = ({
         )}
       </main>
 
-      {/* 3. BARRA INFERIOR (CONFORME PROTÓTIPO) */}
-      <footer className="h-20 bg-white border-t border-[#ebeeed] px-4 py-3 flex items-center justify-between shrink-0">
+      {/* 3. BARRA INFERIOR (CONFORME PROTÓTIPO - AJUSTADA) */}
+      <footer className="h-24 bg-white border-t border-[#ebeeed] px-5 py-4 flex items-center justify-between shrink-0">
         
         {/* Categorias (Alinhado à esquerda) */}
-        <div className="flex gap-2.5 overflow-x-auto max-w-[75%] scrollbar-none">
+        <div className="flex gap-3 overflow-x-auto max-w-[65%] scrollbar-none py-1">
           {categories.map((cat) => (
             <button
               key={cat.id}
@@ -494,7 +486,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                 setActiveCategoryId(cat.id);
                 setViewMode('grid'); // Volta para o grid caso estivesse no teclado
               }}
-              className={`px-5 py-2.5 rounded-xl border font-bold text-xs tracking-wider uppercase transition-all duration-150 active:scale-95 ${cat.color} ${cat.textColor} ${
+              className={`px-6 py-3.5 rounded-xl border font-black text-sm tracking-wider uppercase transition-all duration-150 active:scale-95 ${cat.color} ${cat.textColor} ${
                 activeCategoryId === cat.id && viewMode === 'grid'
                   ? 'ring-4 ring-amber-200 border-amber-400 scale-95 shadow-inner'
                   : 'border-transparent'
@@ -506,8 +498,16 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           ))}
         </div>
 
-        {/* Controles de Modo (Teclado / Grade de Ações) (Alinhado à direita) */}
-        <div className="flex gap-2.5">
+        {/* Controles de Modo e Configurações (Alinhado à direita) */}
+        <div className="flex items-center gap-3">
+          {/* Botão Configurações (Laranja) */}
+          <SafeTouch
+            onClick={handleSettingsClick}
+            className="p-4 border-2 border-orange-200 bg-white text-[#944a00] hover:bg-orange-50 rounded-xl shadow-sm transition-all duration-150 active:scale-95 flex items-center justify-center h-14 w-14"
+          >
+            <Settings size={26} />
+          </SafeTouch>
+
           {/* Botão de Grade */}
           <button
             onClick={() => {
@@ -515,13 +515,13 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               triggerVibrate(8);
               setViewMode('grid');
             }}
-            className={`p-3 border rounded-xl shadow-sm transition-all duration-150 active:scale-95 ${
+            className={`p-4 border rounded-xl shadow-sm transition-all duration-150 active:scale-95 flex items-center justify-center h-14 w-14 ${
               viewMode === 'grid'
                 ? 'bg-slate-900 border-slate-900 text-white'
                 : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            <LayoutGrid size={22} />
+            <LayoutGrid size={26} />
           </button>
 
           {/* Botão de Teclado */}
@@ -531,13 +531,13 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               triggerVibrate(8);
               setViewMode('keyboard');
             }}
-            className={`p-3 border rounded-xl shadow-sm transition-all duration-150 active:scale-95 ${
+            className={`p-4 border rounded-xl shadow-sm transition-all duration-150 active:scale-95 flex items-center justify-center h-14 w-14 ${
               viewMode === 'keyboard'
                 ? 'bg-slate-900 border-slate-900 text-white'
                 : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            <Keyboard size={22} />
+            <Keyboard size={26} />
           </button>
         </div>
       </footer>
