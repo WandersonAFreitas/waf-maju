@@ -4,21 +4,31 @@ import { db } from '../../data/db';
 import { useCommunicationStore } from '../../store/useCommunicationStore';
 import { Card } from '../../components/ui/Card';
 import { SafeTouch } from '../../components/ui/SafeTouch';
+import * as LucideIcons from 'lucide-react';
 import {
   Home,
   Settings,
   Delete,
   Trash2,
-  Play,
+  Volume2,
   ChevronLeft,
   X,
-  Lock
+  Lock,
+  Keyboard,
+  LayoutGrid,
+  Plus
 } from 'lucide-react';
 
 interface MainScreenProps {
   onNavigateToSettings: () => void;
   onNavigateToLogin: () => void;
 }
+
+const KEYBOARD_ROWS = [
+  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+  ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+];
 
 export const MainScreen: React.FC<MainScreenProps> = ({
   onNavigateToSettings,
@@ -49,8 +59,10 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   }, [activeCategoryId]) || [];
 
   // Local State
+  const [viewMode, setViewMode] = useState<'grid' | 'keyboard'>('grid');
+  const [typedText, setTypedText] = useState('');
   const [showParentalModal, setShowParentalModal] = useState(false);
-  const [parentalMode, setParentalMode] = useState<'hold' | 'math'>('hold'); // 'hold' ou 'math'
+  const [parentalMode, setParentalMode] = useState<'hold' | 'math'>('hold');
   const [holdProgress, setHoldProgress] = useState(0);
   const [mathProblem, setMathProblem] = useState({ q: '', a: 0 });
   const [mathInput, setMathInput] = useState('');
@@ -61,7 +73,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   const holdIntervalRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Som sutil de feedback (opcional, mas adiciona um toque premium e acessível)
+  // Som de clique/feedback tátil
   const playClickSound = () => {
     try {
       if (!audioContextRef.current) {
@@ -72,22 +84,30 @@ export const MainScreen: React.FC<MainScreenProps> = ({
       const gain = ctx.createGain();
       
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, ctx.currentTime); // A4 note
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08);
       
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.04, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
       
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.1);
+      osc.stop(ctx.currentTime + 0.08);
     } catch (e) {
-      // Navegadores podem bloquear áudio antes de interação, falhar silenciosamente
+      // Ignorar bloqueio de áudio
     }
   };
 
-  // Gerador de conta matemática para a trava parental
+  const triggerVibrate = (duration = 12) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try {
+        navigator.vibrate(duration);
+      } catch (err) {}
+    }
+  };
+
+  // Gerador de equações matemáticas
   const generateMathProblem = () => {
     const num1 = Math.floor(Math.random() * 8) + 2; // 2 a 9
     const num2 = Math.floor(Math.random() * 8) + 2; // 2 a 9
@@ -99,7 +119,6 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     setMathError(false);
   };
 
-  // Abre o modal de controle dos pais
   const handleSettingsClick = () => {
     if (isAuthenticated) {
       onNavigateToSettings();
@@ -110,11 +129,10 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     }
   };
 
-  // Lógica do botão de segurar 3s
   const startHoldTimer = () => {
     setHoldProgress(0);
     const startTime = Date.now();
-    const duration = 3000; // 3 segundos
+    const duration = 3000;
 
     holdIntervalRef.current = window.setInterval(() => {
       const elapsed = Date.now() - startTime;
@@ -124,7 +142,6 @@ export const MainScreen: React.FC<MainScreenProps> = ({
       if (progress >= 100) {
         clearInterval(holdIntervalRef.current!);
         holdIntervalRef.current = null;
-        // Sucesso na trava parental
         setShowParentalModal(false);
         onNavigateToLogin();
       }
@@ -139,14 +156,12 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     setHoldProgress(0);
   };
 
-  // Limpa o timer caso o componente seja desmontado
   useEffect(() => {
     return () => {
       if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
     };
   }, []);
 
-  // Validação da resposta matemática
   const handleMathSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (parseInt(mathInput, 10) === mathProblem.a) {
@@ -155,12 +170,11 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     } else {
       setMathError(true);
       setMathInput('');
-      // Regenera o problema após erro
       setTimeout(generateMathProblem, 1000);
     }
   };
 
-  // Executa a fala sequencial dos cards
+  // Leitura sequencial das palavras da frase
   const speakPhrase = async () => {
     if (selectedCards.length === 0) return;
     
@@ -179,10 +193,9 @@ export const MainScreen: React.FC<MainScreenProps> = ({
         const utterance = new SpeechSynthesisUtterance(textToSpeak);
         
         utterance.lang = 'pt-BR';
-        utterance.rate = 0.85; // Leitura um pouco mais lenta e clara
+        utterance.rate = 0.85;
         utterance.pitch = 1.1;
 
-        // Tenta achar voz em português
         const voices = window.speechSynthesis.getVoices();
         const ptVoice = voices.find(
           (v) => v.lang.toLowerCase() === 'pt-br' || v.lang.toLowerCase().replace('_', '-') === 'pt-br'
@@ -201,8 +214,10 @@ export const MainScreen: React.FC<MainScreenProps> = ({
 
   const handleCardClick = (card: any) => {
     playClickSound();
+    triggerVibrate(12);
     addCard(card);
-    // Fala o card individualmente ao clicar
+    
+    // Fala a palavra individualmente ao clicar
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(card.label.toLowerCase());
@@ -217,169 +232,317 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     }
   };
 
+  // Teclado virtual: digitação de letras
+  const handleKeyPress = (char: string) => {
+    playClickSound();
+    triggerVibrate(8);
+    setTypedText(prev => prev + char);
+  };
+
+  const handleKeyBackspace = () => {
+    playClickSound();
+    triggerVibrate(8);
+    setTypedText(prev => prev.slice(0, -1));
+  };
+
+  const handleKeySpace = () => {
+    playClickSound();
+    triggerVibrate(8);
+    setTypedText(prev => prev + ' ');
+  };
+
+  const handleKeyAdd = () => {
+    if (!typedText.trim()) return;
+    playClickSound();
+    triggerVibrate(15);
+    
+    // Adiciona o texto digitado como card temporário
+    addCard({
+      label: typedText.trim().toUpperCase(),
+      imageSource: 'Plus',
+      order: 0
+    });
+    setTypedText('');
+  };
+
+  const handleKeyClear = () => {
+    playClickSound();
+    triggerVibrate(8);
+    setTypedText('');
+  };
+
+  // Identifica o último card adicionado para destacar na prancha
+  const lastAddedCard = selectedCards[selectedCards.length - 1];
+
   return (
-    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden select-none">
+    <div className="flex flex-col h-screen bg-[#f7faf9] overflow-hidden select-none">
       
-      {/* 1. BARRA SUPERIOR (CONTROLES E FRASE) */}
-      <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between gap-4 h-24 shrink-0">
+      {/* 1. BARRA SUPERIOR (CONFORME PROTÓTIPO) */}
+      <header className="bg-white border-b border-[#ebeeed] px-4 py-3 flex items-center justify-between gap-3 h-20 shrink-0">
         
-        {/* Botão Home / Resetar Categorias */}
+        {/* Botão Home */}
         <SafeTouch
-          onClick={() => setActiveCategoryId(null)}
-          className="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 min-w-16 h-16 border border-slate-200"
+          onClick={() => {
+            playClickSound();
+            setActiveCategoryId(null);
+            setViewMode('grid');
+          }}
+          className="flex items-center justify-center p-3 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-14 h-14"
         >
-          <Home size={24} />
-          <span className="text-[10px] font-bold mt-1">INÍCIO</span>
+          <Home size={28} />
         </SafeTouch>
 
-        {/* Fila de Frase (Cards Selecionados) */}
-        <div className="flex-grow flex items-center bg-slate-50 border border-slate-200 rounded-2xl h-16 px-3 overflow-x-auto gap-2 scrollbar-thin scrollbar-thumb-slate-300">
+        {/* Fila da Frase (Input de Frase) */}
+        <div className="flex-grow flex items-center bg-white border border-slate-300 rounded-xl h-14 px-3 overflow-x-auto gap-2">
           {selectedCards.length === 0 ? (
-            <span className="text-slate-400 text-sm font-medium pl-2 uppercase tracking-wider">
-              Toque nos cartões abaixo para formar sua frase...
+            <span className="text-slate-400 text-sm font-semibold pl-2 uppercase tracking-wide">
+              Monte sua frase aqui...
             </span>
           ) : (
             selectedCards.map((card, idx) => (
               <div
                 key={`${card.id}-${idx}`}
-                className={`transform transition-all ${
-                  speakingIndex === idx
-                    ? 'scale-105 ring-4 ring-emerald-400 border-emerald-400'
-                    : ''
+                className={`flex items-center gap-1.5 px-3 py-1 bg-white border rounded-lg h-10 shadow-sm border-slate-300 shrink-0 ${
+                  speakingIndex === idx ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
                 }`}
               >
-                <Card
-                  label={card.label}
-                  imageSource={card.imageSource}
-                  size="sm"
-                  color={
-                    speakingIndex === idx
-                      ? 'bg-emerald-50 border-emerald-400'
-                      : card.categoryId 
-                        ? categories.find(c => c.id === card.categoryId)?.color 
-                        : 'bg-white border-slate-200'
-                  }
-                />
+                {card.imageSource.startsWith('data:image') ? (
+                  <img src={card.imageSource} alt="" className="w-6 h-6 object-cover rounded" />
+                ) : (
+                  React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, { size: 18, className: 'text-[#944a00]' })
+                )}
+                <span className="text-xs font-bold text-slate-800 uppercase">{card.label}</span>
               </div>
             ))
           )}
         </div>
 
-        {/* Botões de Ação da Frase */}
-        <div className="flex items-center gap-2 h-16">
-          {/* Backspace */}
+        {/* Controles de Frase e Configurações */}
+        <div className="flex items-center gap-2">
+          {/* Botão APAGAR (Amarelo) */}
           <SafeTouch
             onClick={removeLastCard}
             disabled={selectedCards.length === 0}
-            className="flex flex-col items-center justify-center p-2 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-800 disabled:opacity-40 disabled:cursor-not-allowed border border-amber-200 w-16 h-16"
+            className="flex flex-col items-center justify-center bg-[#fed023] hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed border border-[#6f5900]/20 rounded-xl w-14 h-14 shadow-sm"
           >
-            <Delete size={24} />
-            <span className="text-[10px] font-bold mt-1">APAGAR</span>
+            <Delete size={20} className="text-[#6f5900]" />
+            <span className="text-[9px] font-extrabold text-[#6f5900] tracking-wider mt-0.5 uppercase">Apagar</span>
           </SafeTouch>
 
-          {/* Limpar tudo */}
+          {/* Botão LIMPAR (Vermelho/Rosa) */}
           <SafeTouch
             onClick={clearPhrase}
             disabled={selectedCards.length === 0}
-            className="flex flex-col items-center justify-center p-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-800 disabled:opacity-40 disabled:cursor-not-allowed border border-rose-200 w-16 h-16"
+            className="flex flex-col items-center justify-center bg-[#ffdad6] hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed border border-rose-300 rounded-xl w-14 h-14 shadow-sm"
           >
-            <Trash2 size={24} />
-            <span className="text-[10px] font-bold mt-1">LIMPAR</span>
+            <Trash2 size={20} className="text-[#93000a]" />
+            <span className="text-[9px] font-extrabold text-[#93000a] tracking-wider mt-0.5 uppercase">Limpar</span>
           </SafeTouch>
 
-          {/* Falar Frase */}
+          {/* Botão FALAR (Verde) */}
           <SafeTouch
             onClick={speakPhrase}
             disabled={selectedCards.length === 0}
-            className="flex flex-col items-center justify-center px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white disabled:bg-slate-300 disabled:cursor-not-allowed shadow-md h-16 min-w-24"
+            className="flex items-center justify-center gap-2 bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed px-4 rounded-xl h-14 shadow-md font-bold text-sm uppercase tracking-wider"
           >
-            <Play size={28} fill="white" />
-            <span className="text-[10px] font-bold mt-0.5 uppercase tracking-wider">Falar</span>
+            <Volume2 size={22} />
+            <span>Falar</span>
           </SafeTouch>
 
-          {/* Configurações (Com trava parental) */}
+          {/* Botão Configurações (Laranja) */}
           <SafeTouch
             onClick={handleSettingsClick}
-            className="flex flex-col items-center justify-center p-2 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 w-16 h-16"
+            className="flex items-center justify-center bg-white border-2 border-orange-200 text-[#944a00] hover:bg-orange-50 rounded-xl w-14 h-14"
           >
-            <Settings size={24} />
-            <span className="text-[10px] font-bold mt-1">PAINEL</span>
+            <Settings size={28} />
           </SafeTouch>
         </div>
       </header>
 
-      {/* 2. GRADES DE COMUNICAÇÃO */}
-      <main className="flex-grow flex flex-col p-4 gap-4 overflow-hidden">
+      {/* 2. ÁREA CENTRAL (GRADE OU TECLADO) */}
+      <main className="flex-grow p-4 overflow-hidden flex flex-col justify-center">
         
-        {/* Grade Superior (Ações) */}
-        <div className="flex-grow bg-white border border-slate-200 rounded-3xl p-4 overflow-y-auto shadow-sm">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 justify-items-center">
+        {viewMode === 'grid' ? (
+          /* MODO GRADE DE COMUNICAÇÃO */
+          <div className="flex-grow bg-white border border-[#ebeeed] rounded-2xl p-4 overflow-y-auto shadow-sm">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-3 justify-items-center">
+              
+              {/* Botão voltar dentro da subcategoria */}
+              {activeCategoryId && (
+                <SafeTouch
+                  onClick={() => {
+                    playClickSound();
+                    setActiveCategoryId(null);
+                  }}
+                  className="w-32 h-36 p-3 md:w-36 md:h-40 border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 rounded-lg flex flex-col items-center justify-between active:scale-95"
+                >
+                  <span className="font-bold text-center w-full uppercase tracking-wider text-xs block">
+                    Voltar
+                  </span>
+                  <div className="flex items-center justify-center flex-grow">
+                    <ChevronLeft size={44} />
+                  </div>
+                </SafeTouch>
+              )}
+
+              {/* Renderização dos cards */}
+              {actions.map((card) => {
+                const categoryColor = card.categoryId 
+                  ? categories.find(c => c.id === card.categoryId)?.color 
+                  : 'bg-white';
+                const categoryTextColor = card.categoryId
+                  ? categories.find(c => c.id === card.categoryId)?.textColor
+                  : 'text-slate-800';
+
+                // Verifica se este card foi o último selecionado para aplicar destaque de 3px
+                const isSelected = lastAddedCard && lastAddedCard.label === card.label;
+
+                return (
+                  <Card
+                    key={card.id}
+                    label={card.label}
+                    imageSource={card.imageSource}
+                    color={categoryColor}
+                    textColor={categoryTextColor}
+                    selected={isSelected}
+                    onClick={() => handleCardClick(card)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* MODO TECLADO VIRTUAL DE ALTO CONTRASTE */
+          <div className="flex-grow bg-white border border-[#ebeeed] rounded-2xl p-5 flex flex-col gap-4 shadow-sm max-w-4xl mx-auto w-full justify-between">
             
-            {/* Se houver categoria selecionada, adiciona o botão voltar como primeiro card */}
-            {activeCategoryId && (
-              <SafeTouch
-                onClick={() => {
-                  playClickSound();
-                  setActiveCategoryId(null);
-                }}
-                className="w-32 h-36 p-3 md:w-36 md:h-40 border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 rounded-2xl flex flex-col items-center justify-between active:scale-95"
-              >
-                <div className="flex items-center justify-center flex-grow">
-                  <ChevronLeft size={44} />
+            {/* Campo de Visualização do Texto Digitado */}
+            <div className="flex items-center justify-between border-2 border-black rounded-xl p-3 bg-slate-50 h-16">
+              <span className="text-2xl font-black text-black tracking-wide uppercase">
+                {typedText || 'Digite aqui...'}
+              </span>
+              {typedText && (
+                <button
+                  onClick={handleKeyClear}
+                  className="p-1 text-slate-500 hover:text-rose-600 rounded-full hover:bg-slate-200"
+                >
+                  <X size={24} />
+                </button>
+              )}
+            </div>
+
+            {/* Grid de Letras */}
+            <div className="flex flex-col gap-2.5">
+              {KEYBOARD_ROWS.map((row, rowIdx) => (
+                <div key={rowIdx} className="flex justify-center gap-2">
+                  {row.map((char) => (
+                    <button
+                      key={char}
+                      onClick={() => handleKeyPress(char)}
+                      className="w-12 h-14 sm:w-14 sm:h-16 bg-white border-2 border-black text-black font-black text-xl sm:text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none"
+                    >
+                      {char}
+                    </button>
+                  ))}
                 </div>
-                <span className="font-bold text-center w-full mt-2 uppercase tracking-wider text-xs">
-                  Voltar
-                </span>
-              </SafeTouch>
-            )}
+              ))}
 
-            {/* Listagem de cards da categoria ou da raiz */}
-            {actions.map((card) => {
-              // Encontra a cor da categoria para colorir os botões
-              const categoryColor = card.categoryId 
-                ? categories.find(c => c.id === card.categoryId)?.color 
-                : 'bg-slate-50 border-slate-300 hover:bg-slate-100 active:bg-slate-200';
-              const categoryTextColor = card.categoryId
-                ? categories.find(c => c.id === card.categoryId)?.textColor
-                : 'text-slate-800';
+              {/* Linha de Ações Especiais */}
+              <div className="flex justify-center gap-2 mt-1">
+                {/* Espaço */}
+                <button
+                  onClick={handleKeySpace}
+                  className="flex-grow max-w-[200px] h-14 sm:h-16 bg-white border-2 border-black text-black font-black text-sm uppercase rounded-xl hover:bg-slate-100 active:bg-slate-200"
+                >
+                  Espaço
+                </button>
 
-              return (
-                <Card
-                  key={card.id}
-                  label={card.label}
-                  imageSource={card.imageSource}
-                  color={categoryColor}
-                  textColor={categoryTextColor}
-                  onClick={() => handleCardClick(card)}
-                />
-              );
-            })}
+                {/* Backspace do teclado */}
+                <button
+                  onClick={handleKeyBackspace}
+                  disabled={!typedText}
+                  className="w-16 h-14 sm:h-16 bg-white border-2 border-black disabled:opacity-40 text-black font-black flex items-center justify-center rounded-xl hover:bg-slate-100 active:bg-slate-200"
+                >
+                  <Delete size={26} />
+                </button>
+
+                {/* Adicionar à frase (Oversized) */}
+                <button
+                  onClick={handleKeyAdd}
+                  disabled={!typedText.trim()}
+                  className="px-6 h-14 sm:h-16 bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400 border-2 border-black text-white font-black text-sm uppercase rounded-xl flex items-center gap-2 shadow-md transition-all"
+                >
+                  <Plus size={20} />
+                  Adicionar
+                </button>
+              </div>
+            </div>
+
           </div>
-        </div>
-
-        {/* Grade Inferior (Categorias / Grupos) */}
-        <div className="h-28 bg-white border border-slate-200 rounded-3xl p-3 shadow-sm shrink-0 overflow-x-auto overflow-y-hidden">
-          <div className="flex gap-3 h-full min-w-max">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  playClickSound();
-                  setActiveCategoryId(cat.id);
-                }}
-                className={`px-6 h-full flex flex-col items-center justify-center border-2 rounded-2xl transition-all font-bold tracking-wider uppercase text-sm cursor-pointer active:scale-95 ${cat.color} ${cat.textColor} ${
-                  activeCategoryId === cat.id ? 'ring-4 ring-blue-400 border-blue-400' : 'border-transparent'
-                }`}
-                style={{ touchAction: 'manipulation' }}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
       </main>
 
-      {/* 3. MODAL DE TRAVA PARENTAL */}
+      {/* 3. BARRA INFERIOR (CONFORME PROTÓTIPO) */}
+      <footer className="h-20 bg-white border-t border-[#ebeeed] px-4 py-3 flex items-center justify-between shrink-0">
+        
+        {/* Categorias (Alinhado à esquerda) */}
+        <div className="flex gap-2.5 overflow-x-auto max-w-[75%] scrollbar-none">
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => {
+                playClickSound();
+                setActiveCategoryId(cat.id);
+                setViewMode('grid'); // Volta para o grid caso estivesse no teclado
+              }}
+              className={`px-5 py-2.5 rounded-xl border font-bold text-xs tracking-wider uppercase transition-all duration-150 active:scale-95 ${cat.color} ${cat.textColor} ${
+                activeCategoryId === cat.id && viewMode === 'grid'
+                  ? 'ring-4 ring-amber-200 border-amber-400 scale-95 shadow-inner'
+                  : 'border-transparent'
+              }`}
+              style={{ touchAction: 'manipulation' }}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Controles de Modo (Teclado / Grade de Ações) (Alinhado à direita) */}
+        <div className="flex gap-2.5">
+          {/* Botão de Grade */}
+          <button
+            onClick={() => {
+              playClickSound();
+              triggerVibrate(8);
+              setViewMode('grid');
+            }}
+            className={`p-3 border rounded-xl shadow-sm transition-all duration-150 active:scale-95 ${
+              viewMode === 'grid'
+                ? 'bg-slate-900 border-slate-900 text-white'
+                : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <LayoutGrid size={22} />
+          </button>
+
+          {/* Botão de Teclado */}
+          <button
+            onClick={() => {
+              playClickSound();
+              triggerVibrate(8);
+              setViewMode('keyboard');
+            }}
+            className={`p-3 border rounded-xl shadow-sm transition-all duration-150 active:scale-95 ${
+              viewMode === 'keyboard'
+                ? 'bg-slate-900 border-slate-900 text-white'
+                : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Keyboard size={22} />
+          </button>
+        </div>
+      </footer>
+
+      {/* 4. MODAL DE TRAVA PARENTAL */}
       {showParentalModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-150">
@@ -400,7 +563,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               </p>
             </div>
 
-            {/* Abas de Opção da Trava */}
+            {/* Abas */}
             <div className="flex border-b border-slate-100 mb-6">
               <button
                 onClick={() => setParentalMode('hold')}
@@ -427,7 +590,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               </button>
             </div>
 
-            {/* Modo: Segurar 3s */}
+            {/* Segurar */}
             {parentalMode === 'hold' && (
               <div className="flex flex-col items-center justify-center py-4">
                 <button
@@ -439,7 +602,6 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                   className="relative w-28 h-28 rounded-full bg-blue-500 hover:bg-blue-600 active:bg-blue-700 flex items-center justify-center text-white font-bold text-sm shadow-md transition-transform active:scale-95 cursor-pointer select-none"
                   style={{ touchAction: 'none' }}
                 >
-                  {/* Círculo de progresso */}
                   <svg className="absolute inset-0 w-28 h-28 transform -rotate-90">
                     <circle
                       cx="56"
@@ -468,7 +630,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               </div>
             )}
 
-            {/* Modo: Desafio Matemático */}
+            {/* Matemática */}
             {parentalMode === 'math' && (
               <form onSubmit={handleMathSubmit} className="space-y-4">
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl py-6 text-center">
@@ -491,7 +653,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                     autoFocus
                   />
                   {mathError && (
-                    <p className="text-center text-xs text-rose-500 mt-1.5 font-medium animate-bounce">
+                    <p className="text-center text-xs text-rose-500 mt-1.5 font-medium">
                       Resposta incorreta! Tente novamente.
                     </p>
                   )}

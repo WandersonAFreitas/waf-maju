@@ -48,11 +48,12 @@ export const initialCategories: Category[] = [
 export const initialActionCards: ActionCard[] = [
   // Root cards (Actions/Essential responses at the root level)
   { label: 'QUERO', imageSource: 'Hand', order: 1 },
-  { label: 'NÃO QUERO', imageSource: 'ThumbsDown', order: 2 },
-  { label: 'SIM', imageSource: 'Check', order: 3 },
-  { label: 'NÃO', imageSource: 'X', order: 4 },
-  { label: 'AJUDA', imageSource: 'HelpCircle', order: 5 },
-  { label: 'OBRIGADO', imageSource: 'Heart', order: 6 },
+  { label: 'WANDERSON', imageSource: 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2246%22%20fill%3D%22%23bfdbfe%22%2F%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2245%22%20r%3D%2218%22%20fill%3D%22%23ffedd5%22%2F%3E%3Cpath%20d%3D%22M50%2025c-8%200-14%206-14%2014%200%205%203%209%207%2012-2%203-5%205-9%209-4%204-6%2010-6%2016h44c0-6-2-12-6-16-4-4-7-6-9-9%204-3%207-7%207-12%200-8-6-14-14-14z%22%20fill%3D%22%231e3a8a%22%2F%3E%3Cpath%20d%3D%22M50%2055c-12%200-22%208-25%2019h50c-3-11-13-19-25-19z%22%20fill%3D%22%23f97316%22%2F%3E%3Cpath%20d%3D%22M36%2038c0-8%206-14%2014-14s14%206%2014%2014c0%201-1%202-2%202s-3-2-3-2-2%203-6%203-6-3-6-3-3%202-3%202-2-1-2-2z%22%20fill%3D%22%23172554%22%2F%3E%3C%2Fsvg%3E', order: 2 },
+  { label: 'NÃO QUERO', imageSource: 'ThumbsDown', order: 3 },
+  { label: 'SIM', imageSource: 'Check', order: 4 },
+  { label: 'NÃO', imageSource: 'X', order: 5 },
+  { label: 'AJUDA', imageSource: 'HelpCircle', order: 6 },
+  { label: 'OBRIGADO', imageSource: 'Heart', order: 7 },
 
   // Pessoas
   { label: 'MAMÃE', imageSource: 'User', categoryId: 'pessoas', order: 1 },

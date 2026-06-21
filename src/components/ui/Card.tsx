@@ -4,10 +4,11 @@ import * as LucideIcons from 'lucide-react';
 interface CardProps {
   label: string;
   imageSource: string;
-  color?: string; // Tailwind class like "bg-amber-100 border-amber-300"
-  textColor?: string; // Tailwind class like "text-amber-900"
+  color?: string; // Classe de cor padrão (ex: bg-white)
+  textColor?: string; // Classe de cor de texto (ex: text-slate-700)
   onClick?: () => void;
   size?: 'sm' | 'md' | 'lg';
+  selected?: boolean;
 }
 
 // Mapeamento explícito de ícones usados no sistema para evitar problemas de bundler e tree-shaking
@@ -56,21 +57,20 @@ const iconMap: Record<string, React.ComponentType<any>> = {
 export const CardComponent: React.FC<CardProps> = ({
   label,
   imageSource,
-  color = 'bg-white border-slate-200 hover:bg-slate-50',
-  textColor = 'text-slate-700',
+  color = 'bg-white',
+  textColor = 'text-[#181c1c]',
   onClick,
-  size = 'md'
+  size = 'md',
+  selected = false
 }) => {
-  // Verifica se o imageSource é uma string Base64 ou o nome de um ícone
   const isBase64 = imageSource.startsWith('data:image');
-  
   const IconComponent = !isBase64 ? (iconMap[imageSource] || LucideIcons.HelpCircle) : null;
 
-  // Ajusta tamanhos com base na propriedade size
+  // Ajusta tamanhos do botão de acordo com a especificação (rounded-md/lg, etc.)
   const cardSizeClasses = {
-    sm: 'w-20 h-24 p-2 text-xs',
-    md: 'w-32 h-36 p-3 text-sm md:w-36 md:h-40 md:text-base',
-    lg: 'w-40 h-44 p-4 text-base md:w-44 md:h-48 md:text-lg'
+    sm: 'w-20 h-24 p-2 text-[10px] rounded-md',
+    md: 'w-32 h-36 p-3 text-xs md:w-36 md:h-40 md:text-sm rounded-lg',
+    lg: 'w-40 h-44 p-4 text-sm md:w-44 md:h-48 md:text-base rounded-lg'
   };
 
   const imageSizeClasses = {
@@ -81,27 +81,35 @@ export const CardComponent: React.FC<CardProps> = ({
 
   const iconSize = size === 'sm' ? 24 : size === 'md' ? 44 : 56;
 
+  // Se selecionado, aplica borda grossa (3px) e fundo destacado (inclusive-aac-core)
+  const selectionClasses = selected 
+    ? 'border-[3px] border-[#944a00] bg-[#ffdcc5] scale-95 shadow-inner' 
+    : `border border-slate-300 ${color} hover:bg-slate-50`;
+
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-between border-2 rounded-2xl shadow-sm transition-all duration-150 cursor-pointer active:scale-95 select-none ${cardSizeClasses[size]} ${color} ${textColor} focus:outline-none focus:ring-4 focus:ring-blue-200`}
+      className={`flex flex-col items-center justify-between shadow-sm transition-all duration-150 cursor-pointer active:scale-95 select-none ${cardSizeClasses[size]} ${selectionClasses} ${textColor} focus:outline-none focus:ring-4 focus:ring-amber-200/50`}
       style={{ touchAction: 'manipulation' }}
     >
-      <div className={`flex items-center justify-center w-full flex-grow`}>
+      {/* Rótulo (Label) no TOPO */}
+      <span className="font-bold text-center w-full truncate uppercase tracking-wider text-xs block mb-1">
+        {label}
+      </span>
+
+      {/* Ícone/Imagem centralizado ABAIXO do rótulo */}
+      <div className="flex items-center justify-center w-full flex-grow">
         {isBase64 ? (
           <img
             src={imageSource}
             alt={label}
-            className={`${imageSizeClasses[size]} object-cover rounded-lg`}
+            className={`${imageSizeClasses[size]} object-cover rounded-md`}
             draggable={false}
           />
         ) : (
           IconComponent && <IconComponent size={iconSize} className="stroke-[1.75]" />
         )}
       </div>
-      <span className="font-bold text-center w-full mt-2 truncate uppercase tracking-wider">
-        {label}
-      </span>
     </button>
   );
 };
@@ -113,6 +121,7 @@ export const Card = React.memo(CardComponent, (prevProps, nextProps) => {
     prevProps.imageSource === nextProps.imageSource &&
     prevProps.color === nextProps.color &&
     prevProps.textColor === nextProps.textColor &&
-    prevProps.size === nextProps.size
+    prevProps.size === nextProps.size &&
+    prevProps.selected === nextProps.selected
   );
 });
