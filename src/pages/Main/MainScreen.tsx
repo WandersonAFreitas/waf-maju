@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../data/db';
+import { db, seedProfile } from '../../data/db';
 import { useCommunicationStore } from '../../store/useCommunicationStore';
 import { Card } from '../../components/ui/Card';
 import { SafeTouch } from '../../components/ui/SafeTouch';
@@ -15,7 +15,9 @@ import {
   X,
   Lock,
   Keyboard,
-  LayoutGrid
+  LayoutGrid,
+  FolderOpen,
+  User
 } from 'lucide-react';
 
 interface MainScreenProps {
@@ -39,28 +41,38 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     selectedCards,
     activeCategoryId,
     addCard,
+    addTypedChar,
     removeLastCard,
     clearPhrase,
     setActiveCategoryId,
-    isAuthenticated
+    isAuthenticated,
+    speechRate,
+    currentProfileId,
+    profiles,
+    setProfileId,
+    createProfile,
+    deleteProfile,
+    renameProfile
   } = useCommunicationStore();
 
   // Database Queries
-  const categories = useLiveQuery(() => db.categories.orderBy('order').toArray()) || [];
+  const categories = useLiveQuery(() => 
+    db.categories.where('profileId').equals(currentProfileId).sortBy('order')
+  , [currentProfileId]) || [];
   
   const actions = useLiveQuery(async () => {
     if (!activeCategoryId) {
-      // Cards sem categoria (raiz)
-      return db.actionCards.filter(card => !card.categoryId).sortBy('order');
+      // Cards sem categoria (raiz) do perfil ativo
+      const cardsInProfile = await db.actionCards.where('profileId').equals(currentProfileId).toArray();
+      return cardsInProfile.filter(card => !card.categoryId).sort((a, b) => a.order - b.order);
     } else {
       // Cards da categoria selecionada
       return db.actionCards.where('categoryId').equals(activeCategoryId).sortBy('order');
     }
-  }, [activeCategoryId]) || [];
+  }, [activeCategoryId, currentProfileId]) || [];
 
   // Local State
   const [viewMode, setViewMode] = useState<'grid' | 'keyboard'>('grid');
-  const [typedText, setTypedText] = useState('');
   const [showParentalModal, setShowParentalModal] = useState(false);
   const [parentalMode, setParentalMode] = useState<'hold' | 'math'>('hold');
   const [holdProgress, setHoldProgress] = useState(0);
@@ -68,6 +80,19 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   const [mathInput, setMathInput] = useState('');
   const [mathError, setMathError] = useState(false);
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+
+  // Profile Modal State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [editProfileName, setEditProfileName] = useState('');
+
+  // Garante que o perfil atual possui seus dados iniciais (seeding)
+  useEffect(() => {
+    if (currentProfileId) {
+      seedProfile(currentProfileId);
+    }
+  }, [currentProfileId]);
 
   // Refs
   const holdIntervalRef = useRef<number | null>(null);
@@ -177,10 +202,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   // Leitura sequencial das palavras da frase
   // Leitura sequencial das palavras da frase (incluindo o texto digitado)
   const speakPhrase = async () => {
-    const textParts = [...selectedCards.map((c) => c.label)];
-    if (typedText.trim()) {
-      textParts.push(typedText.trim());
-    }
+    const textParts = selectedCards.map((c) => c.label);
     if (textParts.length === 0) return;
     
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -198,7 +220,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
         const utterance = new SpeechSynthesisUtterance(textToSpeak);
         
         utterance.lang = 'pt-BR';
-        utterance.rate = 0.85;
+        utterance.rate = speechRate;
         utterance.pitch = 1.1;
 
         const voices = window.speechSynthesis.getVoices();
@@ -241,40 +263,31 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   const handleKeyPress = (char: string) => {
     playClickSound();
     triggerVibrate(8);
-    setTypedText(prev => prev + char);
+    addTypedChar(char);
   };
 
   const handleKeyBackspace = () => {
     playClickSound();
     triggerVibrate(8);
-    if (typedText) {
-      setTypedText(prev => prev.slice(0, -1));
-    } else {
-      removeLastCard();
-    }
+    removeLastCard();
   };
 
   const handleKeySpace = () => {
     playClickSound();
     triggerVibrate(8);
-    setTypedText(prev => prev + ' ');
+    addTypedChar(' ');
   };
 
   const handleRemoveLast = () => {
     playClickSound();
     triggerVibrate(8);
-    if (typedText) {
-      setTypedText(prev => prev.slice(0, -1));
-    } else {
-      removeLastCard();
-    }
+    removeLastCard();
   };
 
   const handleClearAll = () => {
     playClickSound();
     triggerVibrate(10);
     clearPhrase();
-    setTypedText('');
   };
 
   // Identifica o último card adicionado para destacar na prancha
@@ -284,50 +297,84 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     <div className="flex flex-col h-screen bg-[#f7faf9] overflow-hidden select-none">
       
       {/* 1. BARRA SUPERIOR (CONFORME PROTÓTIPO) */}
-      <header className="bg-white border-b border-[#ebeeed] px-4 py-3 flex items-center justify-between gap-3 h-20 shrink-0">
+      <header className="bg-white border-b border-[#ebeeed] px-6 py-4 flex items-center justify-between gap-4 h-24 shrink-0">
         
-        {/* Botão Home */}
-        <SafeTouch
-          onClick={() => {
-            playClickSound();
-            setActiveCategoryId(null);
-            setViewMode('grid');
-          }}
-          className="flex items-center justify-center p-3 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-14 h-14"
-        >
-          <Home size={28} />
-        </SafeTouch>
+        {/* Botões de Navegação Principal */}
+        <div className="flex items-center gap-2">
+          {/* Botão Home */}
+          <SafeTouch
+            onClick={() => {
+              playClickSound();
+              setActiveCategoryId(null);
+              setViewMode('grid');
+            }}
+            className="flex items-center justify-center p-3 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-14 h-14"
+            title="Início"
+          >
+            <Home size={28} />
+          </SafeTouch>
+
+          {/* Botão de Perfil */}
+          <SafeTouch
+            onClick={() => {
+              playClickSound();
+              setShowProfileModal(true);
+            }}
+            className="flex flex-col items-center justify-center p-1 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-14 h-14 relative cursor-pointer"
+            title="Alternar Perfil"
+          >
+            <User size={20} />
+            <span className="text-[8px] font-black text-[#944a00] uppercase truncate w-12 text-center mt-0.5">
+              {profiles.find(p => p.id === currentProfileId)?.name || 'PADRÃO'}
+            </span>
+          </SafeTouch>
+        </div>
 
         {/* Fila da Frase (Input de Frase) */}
         <div className="flex-grow flex items-center bg-white border border-slate-300 rounded-xl h-14 px-3 overflow-x-auto gap-2">
-          {selectedCards.length === 0 && !typedText ? (
+          {selectedCards.length === 0 ? (
             <span className="text-slate-400 text-sm font-semibold pl-2 uppercase tracking-wide">
               Monte sua frase aqui...
             </span>
           ) : (
             <>
-              {selectedCards.map((card, idx) => (
-                <div
-                  key={`${card.id}-${idx}`}
-                  className={`flex items-center gap-1.5 px-3 py-1 bg-white border rounded-lg h-10 shadow-sm border-slate-300 shrink-0 ${
-                    speakingIndex === idx ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
-                  }`}
-                >
-                  {card.imageSource.startsWith('data:image') ? (
-                    <img src={card.imageSource} alt="" className="w-6 h-6 object-cover rounded" />
-                  ) : (
-                    React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, { size: 18, className: 'text-[#944a00]' })
-                  )}
-                  <span className="text-xs font-bold text-slate-800 uppercase">{card.label}</span>
-                </div>
-              ))}
-              {typedText && (
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-[#ffdcc5] border border-amber-300 rounded-lg h-10 shadow-sm shrink-0">
-                  <Keyboard size={18} className="text-[#944a00]" />
-                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{typedText}</span>
-                  <span className="animate-pulse h-3 w-0.5 bg-[#944a00] inline-block"></span>
-                </div>
-              )}
+              {selectedCards.map((card, idx) => {
+                const isKeyboard = card.imageSource === 'Keyboard';
+                const isSpeaking = speakingIndex === idx;
+
+                if (isKeyboard) {
+                  return (
+                    <div
+                      key={`${card.id || idx}-${idx}`}
+                      className={`flex items-center gap-1.5 px-3 py-1 bg-[#ffdcc5] border border-amber-300 rounded-lg h-10 shadow-sm shrink-0 ${
+                        isSpeaking ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
+                      }`}
+                    >
+                      <Keyboard size={18} className="text-[#944a00]" />
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{card.label}</span>
+                      {idx === selectedCards.length - 1 && viewMode === 'keyboard' && (
+                        <span className="animate-pulse h-3 w-0.5 bg-[#944a00] inline-block"></span>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={`${card.id || idx}-${idx}`}
+                    className={`flex items-center gap-1.5 px-3 py-1 bg-white border rounded-lg h-10 shadow-sm border-slate-300 shrink-0 ${
+                      isSpeaking ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
+                    }`}
+                  >
+                    {card.imageSource.startsWith('data:image') ? (
+                      <img src={card.imageSource} alt="" className="w-6 h-6 object-cover rounded" />
+                    ) : (
+                      React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, { size: 18, className: 'text-[#944a00]' })
+                    )}
+                    <span className="text-xs font-bold text-slate-800 uppercase">{card.label}</span>
+                  </div>
+                );
+              })}
             </>
           )}
         </div>
@@ -337,7 +384,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           {/* Botão APAGAR (Amarelo) */}
           <SafeTouch
             onClick={handleRemoveLast}
-            disabled={selectedCards.length === 0 && !typedText}
+            disabled={selectedCards.length === 0}
             className="flex flex-col items-center justify-center bg-[#fed023] hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed border border-[#6f5900]/20 rounded-xl w-14 h-14 shadow-sm"
           >
             <Delete size={20} className="text-[#6f5900]" />
@@ -347,7 +394,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           {/* Botão LIMPAR (Vermelho/Rosa) */}
           <SafeTouch
             onClick={handleClearAll}
-            disabled={selectedCards.length === 0 && !typedText}
+            disabled={selectedCards.length === 0}
             className="flex flex-col items-center justify-center bg-[#ffdad6] hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed border border-rose-300 rounded-xl w-14 h-14 shadow-sm"
           >
             <Trash2 size={20} className="text-[#93000a]" />
@@ -357,7 +404,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           {/* Botão FALAR (Verde) */}
           <SafeTouch
             onClick={speakPhrase}
-            disabled={selectedCards.length === 0 && !typedText.trim()}
+            disabled={selectedCards.length === 0}
             className="flex items-center justify-center gap-2 bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed px-4 rounded-xl h-14 shadow-md font-bold text-sm uppercase tracking-wider"
           >
             <Volume2 size={22} />
@@ -373,21 +420,26 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           <div className="flex-grow bg-white border border-[#ebeeed] rounded-2xl p-4 overflow-hidden shadow-sm flex flex-col gap-4">
             
             {/* Categorias no topo da prancha principal */}
-            <div className="flex gap-2.5 pb-2 border-b border-[#ebeeed] overflow-x-auto scrollbar-none shrink-0">
+            <div className="flex gap-3 pb-3 border-b border-[#ebeeed] overflow-x-auto scrollbar-none shrink-0 items-center">
               {/* Botão Geral */}
               <button
                 onClick={() => {
                   playClickSound();
                   setActiveCategoryId(null);
                 }}
-                className={`px-5 py-2.5 rounded-xl border font-bold text-xs tracking-wider uppercase transition-all duration-150 active:scale-95 cursor-pointer ${
+                className={`w-32 h-36 p-3 md:w-36 md:h-40 rounded-lg border-2 font-bold text-xs md:text-sm tracking-wider uppercase transition-all duration-150 active:scale-95 cursor-pointer flex flex-col justify-between shrink-0 ${
                   !activeCategoryId
                     ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-                    : 'bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200'
+                    : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200'
                 }`}
                 style={{ touchAction: 'manipulation' }}
               >
-                Geral
+                <span className="font-bold text-center w-full truncate uppercase tracking-wider text-xs block mb-1">
+                  Geral
+                </span>
+                <div className="flex items-center justify-center w-full flex-grow">
+                  <LayoutGrid size={44} />
+                </div>
               </button>
 
               {categories.map((cat) => (
@@ -397,14 +449,19 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                     playClickSound();
                     setActiveCategoryId(cat.id);
                   }}
-                  className={`px-5 py-2.5 rounded-xl border font-bold text-xs tracking-wider uppercase transition-all duration-150 active:scale-95 cursor-pointer ${cat.color} ${cat.textColor} ${
+                  className={`w-32 h-36 p-3 md:w-36 md:h-40 rounded-lg border-2 font-bold text-xs md:text-sm tracking-wider uppercase transition-all duration-150 active:scale-95 cursor-pointer flex flex-col justify-between shrink-0 ${cat.color} ${cat.textColor} ${
                     activeCategoryId === cat.id
                       ? 'ring-4 ring-amber-200 border-amber-400 scale-95 shadow-inner'
-                      : 'border-transparent'
+                      : 'border-slate-300'
                   }`}
                   style={{ touchAction: 'manipulation' }}
                 >
-                  {cat.label}
+                  <span className="font-bold text-center w-full truncate uppercase tracking-wider text-xs block mb-1">
+                    {cat.label}
+                  </span>
+                  <div className="flex items-center justify-center w-full flex-grow">
+                    <FolderOpen size={44} />
+                  </div>
                 </button>
               ))}
             </div>
@@ -433,12 +490,16 @@ export const MainScreen: React.FC<MainScreenProps> = ({
 
                 {/* Cards da Prancha */}
                 {actions.map((card) => {
-                  const categoryColor = card.categoryId 
-                    ? categories.find(c => c.id === card.categoryId)?.color 
-                    : 'bg-white';
-                  const categoryTextColor = card.categoryId
-                    ? categories.find(c => c.id === card.categoryId)?.textColor
-                    : 'text-slate-800';
+                  const categoryObj = card.categoryId ? categories.find(c => c.id === card.categoryId) : null;
+                  
+                  // Se o card tiver cor customizada, usa ela; senão usa a cor da categoria, ou bg-white por padrão
+                  const cardColor = card.color 
+                    ? card.color 
+                    : (categoryObj ? categoryObj.color : 'bg-white');
+
+                  const cardTextColor = card.color
+                    ? 'text-slate-900 font-bold'
+                    : (categoryObj ? categoryObj.textColor : 'text-slate-800');
 
                   const isSelected = lastAddedCard && lastAddedCard.label === card.label;
 
@@ -447,8 +508,8 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                       key={card.id}
                       label={card.label}
                       imageSource={card.imageSource}
-                      color={categoryColor}
-                      textColor={categoryTextColor}
+                      color={cardColor}
+                      textColor={cardTextColor}
                       selected={isSelected}
                       onClick={() => handleCardClick(card)}
                     />
@@ -459,42 +520,97 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           </div>
         ) : (
           /* MODO TECLADO VIRTUAL DE ALTO CONTRASTE */
-          <div className="flex-grow bg-white flex flex-col gap-4 w-full h-full justify-between p-5">
+          <div className="flex-grow bg-white flex flex-col w-full h-full justify-between p-5">
             
-            {/* Grid de Letras */}
-            <div className="flex-grow flex flex-col gap-3 w-full h-full">
-              {KEYBOARD_ROWS.map((row, rowIdx) => (
-                <div key={rowIdx} className="flex-1 flex justify-center gap-2 w-full">
-                  {row.map((char) => (
-                    <button
-                      key={char}
-                      onClick={() => handleKeyPress(char)}
-                      className="flex-grow flex-1 bg-white border-2 border-black text-black font-black text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center"
-                    >
-                      {char}
-                    </button>
-                  ))}
-                </div>
+            {/* Grid de Letras Simétrico em Grade 20x5 */}
+            <div 
+              className="flex-grow grid gap-3 w-full h-full"
+              style={{ 
+                gridTemplateColumns: 'repeat(20, minmax(0, 1fr))',
+                gridTemplateRows: 'repeat(5, minmax(0, 1fr))' 
+              }}
+            >
+              {/* Row 1: Números (10 teclas, cada uma ocupa 2 colunas) */}
+              {KEYBOARD_ROWS[0].map((char) => (
+                <button
+                  key={char}
+                  onClick={() => handleKeyPress(char)}
+                  className="bg-white border-2 border-black text-black font-black text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer"
+                  style={{ gridColumn: 'span 2 / span 2' }}
+                >
+                  {char}
+                </button>
               ))}
 
-              {/* Linha de Ações Especiais */}
-              <div className="flex-1 flex justify-center gap-2 w-full">
-                {/* Espaço */}
+              {/* Row 2: Q-P (10 teclas, cada uma ocupa 2 colunas) */}
+              {KEYBOARD_ROWS[1].map((char) => (
                 <button
-                  onClick={handleKeySpace}
-                  className="flex-grow flex-[3] bg-white border-2 border-black text-black font-black text-lg uppercase rounded-xl hover:bg-slate-100 active:bg-slate-200 flex items-center justify-center"
+                  key={char}
+                  onClick={() => handleKeyPress(char)}
+                  className="bg-white border-2 border-black text-black font-black text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer"
+                  style={{ gridColumn: 'span 2 / span 2' }}
                 >
-                  Espaço
+                  {char}
                 </button>
+              ))}
 
-                {/* Backspace do teclado */}
+              {/* Row 3: A-L (9 teclas, com espaçamento de 1 coluna em cada lado) */}
+              <div style={{ gridColumn: 'span 1 / span 1' }} />
+              {KEYBOARD_ROWS[2].map((char) => (
                 <button
-                  onClick={handleKeyBackspace}
-                  className="flex-grow flex-[1] bg-white border-2 border-black text-black font-black flex items-center justify-center rounded-xl hover:bg-slate-100 active:bg-slate-200"
+                  key={char}
+                  onClick={() => handleKeyPress(char)}
+                  className="bg-white border-2 border-black text-black font-black text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer"
+                  style={{ gridColumn: 'span 2 / span 2' }}
                 >
-                  <Delete size={26} />
+                  {char}
                 </button>
-              </div>
+              ))}
+              <div style={{ gridColumn: 'span 1 / span 1' }} />
+
+              {/* Row 4: Z-M (7 teclas, com espaçamento de 3 colunas em cada lado) */}
+              <div style={{ gridColumn: 'span 3 / span 3' }} />
+              {KEYBOARD_ROWS[3].map((char) => (
+                <button
+                  key={char}
+                  onClick={() => handleKeyPress(char)}
+                  className="bg-white border-2 border-black text-black font-black text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer"
+                  style={{ gridColumn: 'span 2 / span 2' }}
+                >
+                  {char}
+                </button>
+              ))}
+              <div style={{ gridColumn: 'span 3 / span 3' }} />
+
+              {/* Row 5: Ações Especiais (Espaço 12 colunas, Apagar 5 colunas, Limpar 3 colunas) */}
+              {/* Espaço */}
+              <button
+                onClick={handleKeySpace}
+                className="bg-white border-2 border-black text-black font-black text-lg uppercase rounded-xl hover:bg-slate-100 active:bg-slate-200 flex items-center justify-center shadow-sm h-full w-full cursor-pointer"
+                style={{ gridColumn: 'span 12 / span 12' }}
+              >
+                Espaço
+              </button>
+
+              {/* Backspace do teclado */}
+              <button
+                onClick={handleKeyBackspace}
+                className="bg-white border-2 border-black text-black font-black flex items-center justify-center rounded-xl hover:bg-slate-100 active:bg-slate-200 shadow-sm h-full w-full cursor-pointer"
+                style={{ gridColumn: 'span 5 / span 5' }}
+                title="Apagar"
+              >
+                <Delete size={26} />
+              </button>
+
+              {/* Limpar */}
+              <button
+                onClick={handleClearAll}
+                className="bg-[#ffdad6] hover:bg-red-200 border-2 border-black text-[#93000a] font-black flex items-center justify-center rounded-xl active:scale-95 shadow-sm h-full w-full cursor-pointer"
+                style={{ gridColumn: 'span 3 / span 3' }}
+                title="Limpar tudo"
+              >
+                <Trash2 size={26} />
+              </button>
             </div>
 
           </div>
@@ -506,7 +622,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
         
         {/* Marca do sistema (Alinhado à esquerda) */}
         <div className="flex items-center px-6 h-full text-sm font-black text-slate-400 uppercase tracking-widest">
-          VoiceBoard
+          Wfreitas Solution
         </div>
 
         {/* Controles de Modo e Configurações (Alinhado à direita) */}
@@ -679,6 +795,148 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               </form>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* 5. MODAL DE GERENCIAMENTO DE PERFIS */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-150">
+            <button
+              onClick={() => setShowProfileModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 rounded-full p-1 hover:bg-slate-100"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center p-3 bg-orange-50 text-[#944a00] rounded-full mb-3 border border-orange-100">
+                <User size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Gerenciamento de Perfis</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Alterne entre perfis locais ou gerencie os existentes.
+              </p>
+            </div>
+
+            {/* List of profiles */}
+            <div className="space-y-2.5 max-h-48 overflow-y-auto mb-6 pr-1 scrollbar-thin scrollbar-thumb-slate-200">
+              {profiles.map((profile) => {
+                const isActive = profile.id === currentProfileId;
+                const isEditing = editingProfileId === profile.id;
+
+                return (
+                  <div
+                    key={profile.id}
+                    className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
+                      isActive
+                        ? 'bg-orange-50/50 border-[#944a00] text-orange-950 font-bold'
+                        : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {isEditing ? (
+                      <div className="flex gap-2 flex-grow mr-2">
+                        <input
+                          type="text"
+                          value={editProfileName}
+                          onChange={(e) => setEditProfileName(e.target.value)}
+                          className="flex-grow px-3 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold uppercase focus:outline-none focus:ring-1 focus:ring-[#944a00]"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => {
+                            if (editProfileName.trim()) {
+                              renameProfile(profile.id, editProfileName);
+                              setEditingProfileId(null);
+                            }
+                          }}
+                          className="bg-emerald-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-emerald-700 cursor-pointer"
+                        >
+                          Salvar
+                        </button>
+                        <button
+                          onClick={() => setEditingProfileId(null)}
+                          className="bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-slate-300 cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setProfileId(profile.id);
+                          setShowProfileModal(false);
+                        }}
+                        className="flex-grow text-left font-extrabold uppercase text-xs tracking-wider cursor-pointer"
+                      >
+                        {profile.name} {isActive && '(ATIVO)'}
+                      </button>
+                    )}
+
+                    {!isEditing && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setEditingProfileId(profile.id);
+                            setEditProfileName(profile.name);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 cursor-pointer"
+                          title="Renomear perfil"
+                        >
+                          <LucideIcons.Edit size={14} />
+                        </button>
+                        {profile.id !== 'default' && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Deseja realmente excluir o perfil "${profile.name}" e todas as suas configurações?`)) {
+                                deleteProfile(profile.id);
+                              }
+                            }}
+                            className="p-1.5 text-rose-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
+                            title="Excluir perfil"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Form to create new profile */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newProfileName.trim()) {
+                  createProfile(newProfileName);
+                  setNewProfileName('');
+                }
+              }}
+              className="border-t border-slate-100 pt-4"
+            >
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                Criar Novo Perfil
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                  placeholder="Nome do perfil"
+                  className="flex-grow px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-xs font-bold uppercase focus:outline-none focus:ring-2 focus:ring-[#944a00]/20 focus:border-[#944a00]"
+                />
+                <button
+                  type="submit"
+                  disabled={!newProfileName.trim()}
+                  className="px-4 py-2 bg-[#944a00] hover:bg-[#7a3c00] disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+                >
+                  Criar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

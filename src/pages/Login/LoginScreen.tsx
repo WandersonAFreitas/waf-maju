@@ -67,7 +67,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onBack
             <KeyRound size={28} />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Área do Responsável</h2>
-          <p className="text-sm text-slate-500 mt-1">Autenticação para acessar as configurações do VoiceBoard</p>
+          <p className="text-sm text-slate-500 mt-1">Autenticação para acessar as configurações do Wfreitas Solution</p>
         </div>
 
         {/* Status de Conexão */}

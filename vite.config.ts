@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons.svg'],
       manifest: {
-        name: 'VoiceBoard PWA',
-        short_name: 'VoiceBoard',
+        name: 'Wfreitas Solution PWA',
+        short_name: 'Wfreitas Solution',
         description: 'Aplicativo de Comunicação Alternativa e Ampliada (CAA)',
         theme_color: '#f8fafc',
         background_color: '#f8fafc',

@@ -1,6 +1,6 @@
 # **ESPECIFICAÇÃO TÉCNICA (TECHNICAL SPECIFICATION)**
 
-## **Projeto: VoiceBoard PWA (Comunicação Alternativa e Ampliada - CAA)**
+## **Projeto: Wfreitas Solution PWA (Comunicação Alternativa e Ampliada - CAA)**
 
 **Versão:** 1.0.0 | **Status:** Aprovado para Desenvolvimento | **Autor:** Arquiteto de Software | **Data:** Junho de 2026
 
