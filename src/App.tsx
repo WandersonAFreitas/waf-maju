@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCommunicationStore } from './store/useCommunicationStore';
 import { MainScreen } from './pages/Main/MainScreen';
 import { LoginScreen } from './pages/Login/LoginScreen';
@@ -18,11 +18,51 @@ export default function App() {
   } = useRegisterSW({
     onRegistered(r) {
       console.log('SW registrado com sucesso:', r);
+      // Força verificação periódica de atualizações a cada 1 hora
+      if (r) {
+        setInterval(() => {
+          r.update();
+        }, 60 * 60 * 1000);
+      }
     },
     onRegisterError(error) {
       console.error('Erro no registro do SW:', error);
     },
   });
+
+  // Força verificação imediata de atualizações quando o app é focado (ex: aberto da home screen no iOS)
+  useEffect(() => {
+    const checkUpdate = async () => {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          registration.update();
+        }
+      }
+    };
+
+    window.addEventListener('focus', checkUpdate);
+    // Também executa no carregamento inicial
+    checkUpdate();
+
+    return () => {
+      window.removeEventListener('focus', checkUpdate);
+    };
+  }, []);
+
+  // Força o reload quando o Service Worker é atualizado e toma o controle (importante para iOS no modo autoUpdate)
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      const handleControllerChange = () => {
+        console.log('Novo Service Worker tomou o controle. Recarregando página...');
+        window.location.reload();
+      };
+      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+      return () => {
+        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      };
+    }
+  }, []);
 
   const handleNavigateToSettings = () => {
     if (isAuthenticated) {
