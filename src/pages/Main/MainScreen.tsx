@@ -636,7 +636,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
         
         {/* Marca do sistema (Alinhado à esquerda) */}
         <div className="flex items-center px-6 h-full text-sm font-black text-slate-400 uppercase tracking-widest">
-          Wfreitas Solution
+          Maju
         </div>
 
         {/* Controles de Modo e Configurações (Alinhado à direita) */}

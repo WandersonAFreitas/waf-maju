@@ -11,10 +11,10 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons.svg'],
+      includeAssets: ['favicon.svg', 'icons.svg', 'icon.png'],
       manifest: {
-        name: 'Wfreitas Solution PWA',
-        short_name: 'Wfreitas Solution',
+        name: 'Maju',
+        short_name: 'Maju',
         description: 'Aplicativo de Comunicação Alternativa e Ampliada (CAA)',
         theme_color: '#f8fafc',
         background_color: '#f8fafc',
@@ -25,6 +25,12 @@ export default defineConfig({
             src: 'favicon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
+            purpose: 'any maskable'
+          },
+          {
+            src: 'icon.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ]
