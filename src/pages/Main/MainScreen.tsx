@@ -25,6 +25,7 @@ interface MainScreenProps {
 }
 
 const KEYBOARD_ROWS = [
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
   ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
@@ -352,7 +353,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
       </header>
 
       {/* 2. ÁREA CENTRAL (GRADE OU TECLADO) */}
-      <main className="flex-grow p-4 overflow-hidden flex flex-col justify-center">
+      <main className={`flex-grow overflow-hidden flex flex-col justify-center ${viewMode === 'keyboard' ? 'p-0' : 'p-4'}`}>
         
         {viewMode === 'grid' ? (
           /* MODO GRADE DE COMUNICAÇÃO */
@@ -405,10 +406,10 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           </div>
         ) : (
           /* MODO TECLADO VIRTUAL DE ALTO CONTRASTE */
-          <div className="flex-grow bg-white border border-[#ebeeed] rounded-2xl p-5 flex flex-col gap-4 shadow-sm max-w-4xl mx-auto w-full justify-between">
+          <div className="flex-grow bg-white flex flex-col gap-4 w-full h-full justify-between">
             
             {/* Campo de Visualização do Texto Digitado */}
-            <div className="flex items-center justify-between border-2 border-black rounded-xl p-3 bg-slate-50 h-16">
+            <div className="flex items-center justify-between border-2 border-black rounded-xl p-3 bg-slate-50 h-16 shrink-0 mx-5 mt-4">
               <span className="text-2xl font-black text-black tracking-wide uppercase">
                 {typedText || 'Digite aqui...'}
               </span>
@@ -423,14 +424,14 @@ export const MainScreen: React.FC<MainScreenProps> = ({
             </div>
 
             {/* Grid de Letras */}
-            <div className="flex flex-col gap-2.5">
+            <div className="flex-grow flex flex-col gap-3 px-5 pb-5">
               {KEYBOARD_ROWS.map((row, rowIdx) => (
-                <div key={rowIdx} className="flex justify-center gap-2">
+                <div key={rowIdx} className="flex-1 flex justify-center gap-2 w-full">
                   {row.map((char) => (
                     <button
                       key={char}
                       onClick={() => handleKeyPress(char)}
-                      className="w-12 h-14 sm:w-14 sm:h-16 bg-white border-2 border-black text-black font-black text-xl sm:text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none"
+                      className="flex-grow flex-1 bg-white border-2 border-black text-black font-black text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center"
                     >
                       {char}
                     </button>
@@ -439,11 +440,11 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               ))}
 
               {/* Linha de Ações Especiais */}
-              <div className="flex justify-center gap-2 mt-1">
+              <div className="flex-1 flex justify-center gap-2 w-full">
                 {/* Espaço */}
                 <button
                   onClick={handleKeySpace}
-                  className="flex-grow max-w-[200px] h-14 sm:h-16 bg-white border-2 border-black text-black font-black text-sm uppercase rounded-xl hover:bg-slate-100 active:bg-slate-200"
+                  className="flex-grow flex-[3] bg-white border-2 border-black text-black font-black text-lg uppercase rounded-xl hover:bg-slate-100 active:bg-slate-200 flex items-center justify-center"
                 >
                   Espaço
                 </button>
@@ -452,7 +453,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                 <button
                   onClick={handleKeyBackspace}
                   disabled={!typedText}
-                  className="w-16 h-14 sm:h-16 bg-white border-2 border-black disabled:opacity-40 text-black font-black flex items-center justify-center rounded-xl hover:bg-slate-100 active:bg-slate-200"
+                  className="flex-grow flex-[1] bg-white border-2 border-black disabled:opacity-40 text-black font-black flex items-center justify-center rounded-xl hover:bg-slate-100 active:bg-slate-200"
                 >
                   <Delete size={26} />
                 </button>
@@ -461,7 +462,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                 <button
                   onClick={handleKeyAdd}
                   disabled={!typedText.trim()}
-                  className="px-6 h-14 sm:h-16 bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400 border-2 border-black text-white font-black text-sm uppercase rounded-xl flex items-center gap-2 shadow-md transition-all"
+                  className="flex-grow flex-[2] bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400 border-2 border-black text-white font-black text-lg uppercase rounded-xl flex items-center justify-center gap-2 shadow-md transition-all"
                 >
                   <Plus size={20} />
                   Adicionar
@@ -474,10 +475,10 @@ export const MainScreen: React.FC<MainScreenProps> = ({
       </main>
 
       {/* 3. BARRA INFERIOR (CONFORME PROTÓTIPO - AJUSTADA) */}
-      <footer className="h-24 bg-white border-t border-[#ebeeed] px-5 py-4 flex items-center justify-between shrink-0">
+      <footer className="h-24 bg-white border-t border-[#ebeeed] flex items-center justify-between shrink-0 overflow-hidden">
         
         {/* Categorias (Alinhado à esquerda) */}
-        <div className="flex gap-3 overflow-x-auto max-w-[65%] scrollbar-none py-1">
+        <div className="flex h-full max-w-[65%] overflow-x-auto scrollbar-none items-stretch">
           {categories.map((cat) => (
             <button
               key={cat.id}
@@ -486,10 +487,10 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                 setActiveCategoryId(cat.id);
                 setViewMode('grid'); // Volta para o grid caso estivesse no teclado
               }}
-              className={`px-6 py-3.5 rounded-xl border font-black text-sm tracking-wider uppercase transition-all duration-150 active:scale-95 ${cat.color} ${cat.textColor} ${
+              className={`px-6 h-full font-black text-sm tracking-wider uppercase transition-all duration-150 active:scale-95 border-r border-[#ebeeed] ${cat.color} ${cat.textColor} ${
                 activeCategoryId === cat.id && viewMode === 'grid'
-                  ? 'ring-4 ring-amber-200 border-amber-400 scale-95 shadow-inner'
-                  : 'border-transparent'
+                  ? 'ring-4 ring-amber-200 ring-inset scale-95 shadow-inner'
+                  : ''
               }`}
               style={{ touchAction: 'manipulation' }}
             >
@@ -499,15 +500,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
         </div>
 
         {/* Controles de Modo e Configurações (Alinhado à direita) */}
-        <div className="flex items-center gap-3">
-          {/* Botão Configurações (Laranja) */}
-          <SafeTouch
-            onClick={handleSettingsClick}
-            className="p-4 border-2 border-orange-200 bg-white text-[#944a00] hover:bg-orange-50 rounded-xl shadow-sm transition-all duration-150 active:scale-95 flex items-center justify-center h-14 w-14"
-          >
-            <Settings size={26} />
-          </SafeTouch>
-
+        <div className="flex h-full items-stretch border-l border-[#ebeeed]">
           {/* Botão de Grade */}
           <button
             onClick={() => {
@@ -515,10 +508,10 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               triggerVibrate(8);
               setViewMode('grid');
             }}
-            className={`p-4 border rounded-xl shadow-sm transition-all duration-150 active:scale-95 flex items-center justify-center h-14 w-14 ${
+            className={`px-6 h-full transition-all duration-150 active:scale-95 flex items-center justify-center border-r border-[#ebeeed] ${
               viewMode === 'grid'
-                ? 'bg-slate-900 border-slate-900 text-white'
-                : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                ? 'bg-slate-900 text-white'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
             <LayoutGrid size={26} />
@@ -531,14 +524,22 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               triggerVibrate(8);
               setViewMode('keyboard');
             }}
-            className={`p-4 border rounded-xl shadow-sm transition-all duration-150 active:scale-95 flex items-center justify-center h-14 w-14 ${
+            className={`px-6 h-full transition-all duration-150 active:scale-95 flex items-center justify-center border-r border-[#ebeeed] ${
               viewMode === 'keyboard'
-                ? 'bg-slate-900 border-slate-900 text-white'
-                : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                ? 'bg-slate-900 text-white'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
             <Keyboard size={26} />
           </button>
+
+          {/* Botão Configurações (Laranja) - Agora o Último */}
+          <SafeTouch
+            onClick={handleSettingsClick}
+            className="px-6 h-full bg-white text-[#944a00] hover:bg-orange-50 transition-all duration-150 active:scale-95 flex items-center justify-center"
+          >
+            <Settings size={26} />
+          </SafeTouch>
         </div>
       </footer>
 
