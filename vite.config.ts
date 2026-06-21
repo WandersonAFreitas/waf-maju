@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/waf-maju/', // GitHub Pages: https://wandersonafreitas.github.io/waf-maju/
   plugins: [
     react(),
     tailwindcss(),
