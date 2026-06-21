@@ -15,8 +15,7 @@ import {
   X,
   Lock,
   Keyboard,
-  LayoutGrid,
-  Plus
+  LayoutGrid
 } from 'lucide-react';
 
 interface MainScreenProps {
@@ -176,8 +175,13 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   };
 
   // Leitura sequencial das palavras da frase
+  // Leitura sequencial das palavras da frase (incluindo o texto digitado)
   const speakPhrase = async () => {
-    if (selectedCards.length === 0) return;
+    const textParts = [...selectedCards.map((c) => c.label)];
+    if (typedText.trim()) {
+      textParts.push(typedText.trim());
+    }
+    if (textParts.length === 0) return;
     
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       alert('Síntese de voz não suportada neste navegador.');
@@ -186,11 +190,11 @@ export const MainScreen: React.FC<MainScreenProps> = ({
 
     window.speechSynthesis.cancel();
 
-    for (let i = 0; i < selectedCards.length; i++) {
+    for (let i = 0; i < textParts.length; i++) {
       setSpeakingIndex(i);
       
       await new Promise<void>((resolve) => {
-        const textToSpeak = selectedCards[i].label.toLowerCase();
+        const textToSpeak = textParts[i].toLowerCase();
         const utterance = new SpeechSynthesisUtterance(textToSpeak);
         
         utterance.lang = 'pt-BR';
@@ -243,7 +247,11 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   const handleKeyBackspace = () => {
     playClickSound();
     triggerVibrate(8);
-    setTypedText(prev => prev.slice(0, -1));
+    if (typedText) {
+      setTypedText(prev => prev.slice(0, -1));
+    } else {
+      removeLastCard();
+    }
   };
 
   const handleKeySpace = () => {
@@ -252,23 +260,20 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     setTypedText(prev => prev + ' ');
   };
 
-  const handleKeyAdd = () => {
-    if (!typedText.trim()) return;
-    playClickSound();
-    triggerVibrate(15);
-    
-    // Adiciona o texto digitado como card temporário
-    addCard({
-      label: typedText.trim().toUpperCase(),
-      imageSource: 'Plus',
-      order: 0
-    });
-    setTypedText('');
-  };
-
-  const handleKeyClear = () => {
+  const handleRemoveLast = () => {
     playClickSound();
     triggerVibrate(8);
+    if (typedText) {
+      setTypedText(prev => prev.slice(0, -1));
+    } else {
+      removeLastCard();
+    }
+  };
+
+  const handleClearAll = () => {
+    playClickSound();
+    triggerVibrate(10);
+    clearPhrase();
     setTypedText('');
   };
 
@@ -295,26 +300,35 @@ export const MainScreen: React.FC<MainScreenProps> = ({
 
         {/* Fila da Frase (Input de Frase) */}
         <div className="flex-grow flex items-center bg-white border border-slate-300 rounded-xl h-14 px-3 overflow-x-auto gap-2">
-          {selectedCards.length === 0 ? (
+          {selectedCards.length === 0 && !typedText ? (
             <span className="text-slate-400 text-sm font-semibold pl-2 uppercase tracking-wide">
               Monte sua frase aqui...
             </span>
           ) : (
-            selectedCards.map((card, idx) => (
-              <div
-                key={`${card.id}-${idx}`}
-                className={`flex items-center gap-1.5 px-3 py-1 bg-white border rounded-lg h-10 shadow-sm border-slate-300 shrink-0 ${
-                  speakingIndex === idx ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
-                }`}
-              >
-                {card.imageSource.startsWith('data:image') ? (
-                  <img src={card.imageSource} alt="" className="w-6 h-6 object-cover rounded" />
-                ) : (
-                  React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, { size: 18, className: 'text-[#944a00]' })
-                )}
-                <span className="text-xs font-bold text-slate-800 uppercase">{card.label}</span>
-              </div>
-            ))
+            <>
+              {selectedCards.map((card, idx) => (
+                <div
+                  key={`${card.id}-${idx}`}
+                  className={`flex items-center gap-1.5 px-3 py-1 bg-white border rounded-lg h-10 shadow-sm border-slate-300 shrink-0 ${
+                    speakingIndex === idx ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
+                  }`}
+                >
+                  {card.imageSource.startsWith('data:image') ? (
+                    <img src={card.imageSource} alt="" className="w-6 h-6 object-cover rounded" />
+                  ) : (
+                    React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, { size: 18, className: 'text-[#944a00]' })
+                  )}
+                  <span className="text-xs font-bold text-slate-800 uppercase">{card.label}</span>
+                </div>
+              ))}
+              {typedText && (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-[#ffdcc5] border border-amber-300 rounded-lg h-10 shadow-sm shrink-0">
+                  <Keyboard size={18} className="text-[#944a00]" />
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{typedText}</span>
+                  <span className="animate-pulse h-3 w-0.5 bg-[#944a00] inline-block"></span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -322,8 +336,8 @@ export const MainScreen: React.FC<MainScreenProps> = ({
         <div className="flex items-center gap-2">
           {/* Botão APAGAR (Amarelo) */}
           <SafeTouch
-            onClick={removeLastCard}
-            disabled={selectedCards.length === 0}
+            onClick={handleRemoveLast}
+            disabled={selectedCards.length === 0 && !typedText}
             className="flex flex-col items-center justify-center bg-[#fed023] hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed border border-[#6f5900]/20 rounded-xl w-14 h-14 shadow-sm"
           >
             <Delete size={20} className="text-[#6f5900]" />
@@ -332,8 +346,8 @@ export const MainScreen: React.FC<MainScreenProps> = ({
 
           {/* Botão LIMPAR (Vermelho/Rosa) */}
           <SafeTouch
-            onClick={clearPhrase}
-            disabled={selectedCards.length === 0}
+            onClick={handleClearAll}
+            disabled={selectedCards.length === 0 && !typedText}
             className="flex flex-col items-center justify-center bg-[#ffdad6] hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed border border-rose-300 rounded-xl w-14 h-14 shadow-sm"
           >
             <Trash2 size={20} className="text-[#93000a]" />
@@ -343,7 +357,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           {/* Botão FALAR (Verde) */}
           <SafeTouch
             onClick={speakPhrase}
-            disabled={selectedCards.length === 0}
+            disabled={selectedCards.length === 0 && !typedText.trim()}
             className="flex items-center justify-center gap-2 bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed px-4 rounded-xl h-14 shadow-md font-bold text-sm uppercase tracking-wider"
           >
             <Volume2 size={22} />
@@ -351,80 +365,104 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           </SafeTouch>
         </div>
       </header>
-
       {/* 2. ÁREA CENTRAL (GRADE OU TECLADO) */}
       <main className={`flex-grow overflow-hidden flex flex-col justify-center ${viewMode === 'keyboard' ? 'p-0' : 'p-4'}`}>
         
         {viewMode === 'grid' ? (
           /* MODO GRADE DE COMUNICAÇÃO */
-          <div className="flex-grow bg-white border border-[#ebeeed] rounded-2xl p-4 overflow-y-auto shadow-sm">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-3 justify-items-center">
-              
-              {/* Botão voltar dentro da subcategoria */}
-              {activeCategoryId && (
-                <SafeTouch
+          <div className="flex-grow bg-white border border-[#ebeeed] rounded-2xl p-4 overflow-hidden shadow-sm flex flex-col gap-4">
+            
+            {/* Categorias no topo da prancha principal */}
+            <div className="flex gap-2.5 pb-2 border-b border-[#ebeeed] overflow-x-auto scrollbar-none shrink-0">
+              {/* Botão Geral */}
+              <button
+                onClick={() => {
+                  playClickSound();
+                  setActiveCategoryId(null);
+                }}
+                className={`px-5 py-2.5 rounded-xl border font-bold text-xs tracking-wider uppercase transition-all duration-150 active:scale-95 cursor-pointer ${
+                  !activeCategoryId
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+                    : 'bg-slate-100 border-transparent text-slate-600 hover:bg-slate-200'
+                }`}
+                style={{ touchAction: 'manipulation' }}
+              >
+                Geral
+              </button>
+
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
                   onClick={() => {
                     playClickSound();
-                    setActiveCategoryId(null);
+                    setActiveCategoryId(cat.id);
                   }}
-                  className="w-32 h-36 p-3 md:w-36 md:h-40 border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 rounded-lg flex flex-col items-center justify-between active:scale-95"
+                  className={`px-5 py-2.5 rounded-xl border font-bold text-xs tracking-wider uppercase transition-all duration-150 active:scale-95 cursor-pointer ${cat.color} ${cat.textColor} ${
+                    activeCategoryId === cat.id
+                      ? 'ring-4 ring-amber-200 border-amber-400 scale-95 shadow-inner'
+                      : 'border-transparent'
+                  }`}
+                  style={{ touchAction: 'manipulation' }}
                 >
-                  <span className="font-bold text-center w-full uppercase tracking-wider text-xs block">
-                    Voltar
-                  </span>
-                  <div className="flex items-center justify-center flex-grow">
-                    <ChevronLeft size={44} />
-                  </div>
-                </SafeTouch>
-              )}
+                  {cat.label}
+                </button>
+              ))}
+            </div>
 
-              {/* Renderização dos cards */}
-              {actions.map((card) => {
-                const categoryColor = card.categoryId 
-                  ? categories.find(c => c.id === card.categoryId)?.color 
-                  : 'bg-white';
-                const categoryTextColor = card.categoryId
-                  ? categories.find(c => c.id === card.categoryId)?.textColor
-                  : 'text-slate-800';
+            {/* Grade de Cards */}
+            <div className="flex-grow overflow-y-auto pr-1">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-3 justify-items-center">
+                
+                {/* Botão voltar dentro da subcategoria */}
+                {activeCategoryId && (
+                  <SafeTouch
+                    onClick={() => {
+                      playClickSound();
+                      setActiveCategoryId(null);
+                    }}
+                    className="w-32 h-36 p-3 md:w-36 md:h-40 border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 rounded-lg flex flex-col items-center justify-between active:scale-95"
+                  >
+                    <span className="font-bold text-center w-full uppercase tracking-wider text-xs block">
+                      Voltar
+                    </span>
+                    <div className="flex items-center justify-center flex-grow">
+                      <ChevronLeft size={44} />
+                    </div>
+                  </SafeTouch>
+                )}
 
-                // Verifica se este card foi o último selecionado para aplicar destaque de 3px
-                const isSelected = lastAddedCard && lastAddedCard.label === card.label;
+                {/* Cards da Prancha */}
+                {actions.map((card) => {
+                  const categoryColor = card.categoryId 
+                    ? categories.find(c => c.id === card.categoryId)?.color 
+                    : 'bg-white';
+                  const categoryTextColor = card.categoryId
+                    ? categories.find(c => c.id === card.categoryId)?.textColor
+                    : 'text-slate-800';
 
-                return (
-                  <Card
-                    key={card.id}
-                    label={card.label}
-                    imageSource={card.imageSource}
-                    color={categoryColor}
-                    textColor={categoryTextColor}
-                    selected={isSelected}
-                    onClick={() => handleCardClick(card)}
-                  />
-                );
-              })}
+                  const isSelected = lastAddedCard && lastAddedCard.label === card.label;
+
+                  return (
+                    <Card
+                      key={card.id}
+                      label={card.label}
+                      imageSource={card.imageSource}
+                      color={categoryColor}
+                      textColor={categoryTextColor}
+                      selected={isSelected}
+                      onClick={() => handleCardClick(card)}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : (
           /* MODO TECLADO VIRTUAL DE ALTO CONTRASTE */
-          <div className="flex-grow bg-white flex flex-col gap-4 w-full h-full justify-between">
+          <div className="flex-grow bg-white flex flex-col gap-4 w-full h-full justify-between p-5">
             
-            {/* Campo de Visualização do Texto Digitado */}
-            <div className="flex items-center justify-between border-2 border-black rounded-xl p-3 bg-slate-50 h-16 shrink-0 mx-5 mt-4">
-              <span className="text-2xl font-black text-black tracking-wide uppercase">
-                {typedText || 'Digite aqui...'}
-              </span>
-              {typedText && (
-                <button
-                  onClick={handleKeyClear}
-                  className="p-1 text-slate-500 hover:text-rose-600 rounded-full hover:bg-slate-200"
-                >
-                  <X size={24} />
-                </button>
-              )}
-            </div>
-
             {/* Grid de Letras */}
-            <div className="flex-grow flex flex-col gap-3 px-5 pb-5">
+            <div className="flex-grow flex flex-col gap-3 w-full h-full">
               {KEYBOARD_ROWS.map((row, rowIdx) => (
                 <div key={rowIdx} className="flex-1 flex justify-center gap-2 w-full">
                   {row.map((char) => (
@@ -452,20 +490,9 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                 {/* Backspace do teclado */}
                 <button
                   onClick={handleKeyBackspace}
-                  disabled={!typedText}
-                  className="flex-grow flex-[1] bg-white border-2 border-black disabled:opacity-40 text-black font-black flex items-center justify-center rounded-xl hover:bg-slate-100 active:bg-slate-200"
+                  className="flex-grow flex-[1] bg-white border-2 border-black text-black font-black flex items-center justify-center rounded-xl hover:bg-slate-100 active:bg-slate-200"
                 >
                   <Delete size={26} />
-                </button>
-
-                {/* Adicionar à frase (Oversized) */}
-                <button
-                  onClick={handleKeyAdd}
-                  disabled={!typedText.trim()}
-                  className="flex-grow flex-[2] bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] disabled:bg-slate-200 disabled:border-slate-300 disabled:text-slate-400 border-2 border-black text-white font-black text-lg uppercase rounded-xl flex items-center justify-center gap-2 shadow-md transition-all"
-                >
-                  <Plus size={20} />
-                  Adicionar
                 </button>
               </div>
             </div>
@@ -475,28 +502,11 @@ export const MainScreen: React.FC<MainScreenProps> = ({
       </main>
 
       {/* 3. BARRA INFERIOR (CONFORME PROTÓTIPO - AJUSTADA) */}
-      <footer className="h-24 bg-white border-t border-[#ebeeed] flex items-center justify-between shrink-0 overflow-hidden">
+      <footer className="h-16 bg-white border-t border-[#ebeeed] flex items-center justify-between shrink-0 overflow-hidden">
         
-        {/* Categorias (Alinhado à esquerda) */}
-        <div className="flex h-full max-w-[65%] overflow-x-auto scrollbar-none items-stretch">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => {
-                playClickSound();
-                setActiveCategoryId(cat.id);
-                setViewMode('grid'); // Volta para o grid caso estivesse no teclado
-              }}
-              className={`px-6 h-full font-black text-sm tracking-wider uppercase transition-all duration-150 active:scale-95 border-r border-[#ebeeed] ${cat.color} ${cat.textColor} ${
-                activeCategoryId === cat.id && viewMode === 'grid'
-                  ? 'ring-4 ring-amber-200 ring-inset scale-95 shadow-inner'
-                  : ''
-              }`}
-              style={{ touchAction: 'manipulation' }}
-            >
-              {cat.label}
-            </button>
-          ))}
+        {/* Marca do sistema (Alinhado à esquerda) */}
+        <div className="flex items-center px-6 h-full text-sm font-black text-slate-400 uppercase tracking-widest">
+          VoiceBoard
         </div>
 
         {/* Controles de Modo e Configurações (Alinhado à direita) */}
