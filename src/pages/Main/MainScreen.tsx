@@ -635,8 +635,9 @@ export const MainScreen: React.FC<MainScreenProps> = ({
       <footer className="h-16 bg-white border-t border-[#ebeeed] flex items-center justify-between shrink-0 overflow-hidden">
         
         {/* Marca do sistema (Alinhado à esquerda) */}
-        <div className="flex items-center px-6 h-full text-sm font-black text-slate-400 uppercase tracking-widest">
-          Maju
+        <div className="flex items-center gap-2 px-6 h-full text-sm font-black text-slate-400 uppercase tracking-widest select-none">
+          <span>WFreitas Solution</span>
+          <span className="text-[10px] font-semibold text-slate-400/80 lowercase mt-0.5 select-none">v{import.meta.env.VITE_APP_VERSION || '1.0.0'}</span>
         </div>
 
         {/* Controles de Modo e Configurações (Alinhado à direita) */}
