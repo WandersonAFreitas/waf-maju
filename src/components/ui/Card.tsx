@@ -69,17 +69,15 @@ export const CardComponent: React.FC<CardProps> = ({
   // Ajusta tamanhos do botão de acordo com a especificação (rounded-md/lg, etc.)
   const cardSizeClasses = {
     sm: 'w-20 h-24 p-2 text-[10px] rounded-md',
-    md: 'w-32 h-36 p-3 text-xs md:w-36 md:h-40 md:text-sm rounded-lg',
+    md: 'w-full max-w-[144px] h-28 sm:w-32 sm:h-36 md:w-36 md:h-40 p-2 sm:p-3 rounded-lg',
     lg: 'w-40 h-44 p-4 text-sm md:w-44 md:h-48 md:text-base rounded-lg'
   };
 
   const imageSizeClasses = {
     sm: 'w-10 h-10',
-    md: 'w-16 h-16 md:w-20 md:h-20',
+    md: 'w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20',
     lg: 'w-24 h-24 md:w-28 md:h-28'
   };
-
-  const iconSize = size === 'sm' ? 24 : size === 'md' ? 44 : 56;
 
   // Se selecionado, aplica borda grossa (3px) e fundo destacado (inclusive-aac-core)
   const selectionClasses = selected 
@@ -93,7 +91,7 @@ export const CardComponent: React.FC<CardProps> = ({
       style={{ touchAction: 'manipulation' }}
     >
       {/* Rótulo (Label) no TOPO */}
-      <span className="font-bold text-center w-full truncate uppercase tracking-wider text-xs block mb-1">
+      <span className="font-bold text-center w-full truncate uppercase tracking-wider text-xs md:text-sm block mb-1">
         {label}
       </span>
 
@@ -107,7 +105,7 @@ export const CardComponent: React.FC<CardProps> = ({
             draggable={false}
           />
         ) : (
-          IconComponent && <IconComponent size={iconSize} className="stroke-[1.75]" />
+          IconComponent && <IconComponent className="stroke-[1.75] w-8 h-8 sm:w-11 sm:h-11 md:w-12 md:h-12" />
         )}
       </div>
     </button>

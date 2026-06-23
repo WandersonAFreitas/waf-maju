@@ -310,11 +310,11 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   return (
     <div className="flex flex-col h-screen bg-[#f7faf9] overflow-hidden select-none">
       
-      {/* 1. BARRA SUPERIOR (CONFORME PROTÓTIPO) */}
-      <header className="bg-white border-b border-[#ebeeed] px-6 py-4 flex items-center justify-between gap-4 h-24 shrink-0">
+      {/* 1. BARRA SUPERIOR (CONFORME PROTÓTIPO ADAPTADO) */}
+      <header className="bg-white border-b border-[#ebeeed] px-4 py-3 md:px-6 md:py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 min-h-[96px] md:h-24 shrink-0">
         
-        {/* Botões de Navegação Principal */}
-        <div className="flex items-center gap-2">
+        {/* Linha 1: Navegação e Campo de Entrada */}
+        <div className="flex items-center gap-2 w-full md:w-auto md:flex-grow">
           {/* Botão Home */}
           <SafeTouch
             onClick={() => {
@@ -322,137 +322,145 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               setActiveCategoryId(null);
               setViewMode('grid');
             }}
-            className="flex items-center justify-center p-3 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-14 h-14"
+            className="flex items-center justify-center p-2.5 md:p-3 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-12 h-12 md:w-14 md:h-14 shrink-0 cursor-pointer min-h-[48px]"
             title="Início"
+            style={{ touchAction: 'manipulation' }}
           >
-            <Home size={28} />
+            <Home className="w-6 h-6 md:w-7 md:h-7" />
           </SafeTouch>
 
-          {/* Botão de Perfil */}
+          {/* Fila da Frase (Input de Frase) - Rolagem horizontal automática */}
+          <div className="flex-grow flex items-center bg-white border border-slate-300 rounded-xl h-12 md:h-14 px-3 overflow-x-auto gap-2 scrollbar-none">
+            {selectedCards.length === 0 ? (
+              <span className="text-slate-400 text-xs md:text-sm font-semibold pl-2 uppercase tracking-wide select-none">
+                Monte sua frase aqui...
+              </span>
+            ) : (
+              <>
+                {selectedCards.map((card, idx) => {
+                  const isKeyboard = card.imageSource === 'Keyboard';
+                  const isSpeaking = speakingIndex === idx;
+
+                  if (isKeyboard) {
+                    return (
+                      <div
+                        key={`${card.id || idx}-${idx}`}
+                        className={`flex items-center gap-1.5 px-2 py-0.5 md:px-3 md:py-1 bg-[#ffdcc5] border border-amber-300 rounded-lg h-8 md:h-10 shadow-sm shrink-0 ${
+                          isSpeaking ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
+                        }`}
+                      >
+                        <Keyboard className="text-[#944a00] w-4 h-4 md:w-5 md:h-5" />
+                        <span className="text-[10px] md:text-xs font-bold text-slate-800 uppercase tracking-wider">{card.label}</span>
+                        {idx === selectedCards.length - 1 && viewMode === 'keyboard' && (
+                          <span className="animate-pulse h-3 w-0.5 bg-[#944a00] inline-block"></span>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={`${card.id || idx}-${idx}`}
+                      className={`flex items-center gap-1.5 px-2 py-0.5 md:px-3 md:py-1 bg-white border rounded-lg h-8 md:h-10 shadow-sm border-slate-300 shrink-0 ${
+                        isSpeaking ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
+                      }`}
+                    >
+                      {card.imageSource.startsWith('data:image') ? (
+                        <img src={card.imageSource} alt="" className="w-5 h-5 md:w-6 md:h-6 object-cover rounded" />
+                      ) : (
+                        React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, {
+                          className: 'text-[#944a00] w-4 h-4 md:w-5 md:h-5'
+                        })
+                      )}
+                      <span className="text-[10px] md:text-xs font-bold text-slate-800 uppercase">{card.label}</span>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+
+          {/* Botão de Perfil / PAINEL */}
           <SafeTouch
             onClick={() => {
               playClickSound();
               setShowProfileModal(true);
             }}
-            className="flex flex-col items-center justify-center p-1 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-14 h-14 relative cursor-pointer"
+            className="flex flex-col items-center justify-center p-1 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-12 h-12 md:w-14 md:h-14 relative cursor-pointer shrink-0 min-h-[48px]"
             title="Alternar Perfil"
+            style={{ touchAction: 'manipulation' }}
           >
-            <User size={20} />
-            <span className="text-[8px] font-black text-[#944a00] uppercase truncate w-12 text-center mt-0.5">
+            <User className="w-5 h-5 md:w-6 md:h-6" />
+            <span className="text-[7px] md:text-[8px] font-black text-[#944a00] uppercase truncate w-10 md:w-12 text-center mt-0.5">
               {profiles.find(p => p.id === currentProfileId)?.name || 'PADRÃO'}
             </span>
           </SafeTouch>
         </div>
 
-        {/* Fila da Frase (Input de Frase) */}
-        <div className="flex-grow flex items-center bg-white border border-slate-300 rounded-xl h-14 px-3 overflow-x-auto gap-2">
-          {selectedCards.length === 0 ? (
-            <span className="text-slate-400 text-sm font-semibold pl-2 uppercase tracking-wide">
-              Monte sua frase aqui...
-            </span>
-          ) : (
-            <>
-              {selectedCards.map((card, idx) => {
-                const isKeyboard = card.imageSource === 'Keyboard';
-                const isSpeaking = speakingIndex === idx;
-
-                if (isKeyboard) {
-                  return (
-                    <div
-                      key={`${card.id || idx}-${idx}`}
-                      className={`flex items-center gap-1.5 px-3 py-1 bg-[#ffdcc5] border border-amber-300 rounded-lg h-10 shadow-sm shrink-0 ${
-                        isSpeaking ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
-                      }`}
-                    >
-                      <Keyboard size={18} className="text-[#944a00]" />
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">{card.label}</span>
-                      {idx === selectedCards.length - 1 && viewMode === 'keyboard' && (
-                        <span className="animate-pulse h-3 w-0.5 bg-[#944a00] inline-block"></span>
-                      )}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={`${card.id || idx}-${idx}`}
-                    className={`flex items-center gap-1.5 px-3 py-1 bg-white border rounded-lg h-10 shadow-sm border-slate-300 shrink-0 ${
-                      isSpeaking ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
-                    }`}
-                  >
-                    {card.imageSource.startsWith('data:image') ? (
-                      <img src={card.imageSource} alt="" className="w-6 h-6 object-cover rounded" />
-                    ) : (
-                      React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, { size: 18, className: 'text-[#944a00]' })
-                    )}
-                    <span className="text-xs font-bold text-slate-800 uppercase">{card.label}</span>
-                  </div>
-                );
-              })}
-            </>
-          )}
-        </div>
-
-        {/* Controles de Frase e Configurações */}
-        <div className="flex items-center gap-2">
+        {/* Linha 2: Controles de Frase - Agrupados e Confortáveis */}
+        <div className="flex items-center gap-2 w-full md:w-auto md:shrink-0 justify-between md:justify-start">
           {/* Botão APAGAR (Amarelo) */}
           <SafeTouch
             onClick={handleRemoveLast}
             disabled={selectedCards.length === 0}
-            className="flex flex-col items-center justify-center bg-[#fed023] hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed border border-[#6f5900]/20 rounded-xl w-14 h-14 shadow-sm"
+            className="flex-1 md:flex-none flex flex-col items-center justify-center bg-[#fed023] hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed border border-[#6f5900]/20 rounded-xl w-auto md:w-14 h-12 md:h-14 shadow-sm min-h-[48px] cursor-pointer"
+            style={{ touchAction: 'manipulation' }}
           >
-            <Delete size={20} className="text-[#6f5900]" />
-            <span className="text-[9px] font-extrabold text-[#6f5900] tracking-wider mt-0.5 uppercase">Apagar</span>
+            <Delete className="text-[#6f5900] w-5 h-5 md:w-6 md:h-6" />
+            <span className="text-[8px] md:text-[9px] font-extrabold text-[#6f5900] tracking-wider mt-0.5 uppercase">Apagar</span>
           </SafeTouch>
 
           {/* Botão LIMPAR (Vermelho/Rosa) */}
           <SafeTouch
             onClick={handleClearAll}
             disabled={selectedCards.length === 0}
-            className="flex flex-col items-center justify-center bg-[#ffdad6] hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed border border-rose-300 rounded-xl w-14 h-14 shadow-sm"
+            className="flex-1 md:flex-none flex flex-col items-center justify-center bg-[#ffdad6] hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed border border-rose-300 rounded-xl w-auto md:w-14 h-12 md:h-14 shadow-sm min-h-[48px] cursor-pointer"
+            style={{ touchAction: 'manipulation' }}
           >
-            <Trash2 size={20} className="text-[#93000a]" />
-            <span className="text-[9px] font-extrabold text-[#93000a] tracking-wider mt-0.5 uppercase">Limpar</span>
+            <Trash2 className="text-[#93000a] w-5 h-5 md:w-6 md:h-6" />
+            <span className="text-[8px] md:text-[9px] font-extrabold text-[#93000a] tracking-wider mt-0.5 uppercase">Limpar</span>
           </SafeTouch>
 
           {/* Botão FALAR (Verde) */}
           <SafeTouch
             onClick={speakPhrase}
             disabled={selectedCards.length === 0}
-            className="flex items-center justify-center gap-2 bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed px-4 rounded-xl h-14 shadow-md font-bold text-sm uppercase tracking-wider"
+            className="flex-[2] md:flex-none flex items-center justify-center gap-2 bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed px-4 rounded-xl h-12 md:h-14 shadow-md font-bold text-xs md:text-sm uppercase tracking-wider min-h-[48px] cursor-pointer"
+            style={{ touchAction: 'manipulation' }}
           >
-            <Volume2 size={22} />
+            <Volume2 className="w-5 h-5 md:w-6 md:h-6" />
             <span>Falar</span>
           </SafeTouch>
         </div>
       </header>
+
       {/* 2. ÁREA CENTRAL (GRADE OU TECLADO) */}
-      <main className={`flex-grow overflow-hidden flex flex-col justify-center ${viewMode === 'keyboard' ? 'p-0' : 'p-4'}`}>
+      <main className={`flex-grow overflow-hidden flex flex-col justify-center ${viewMode === 'keyboard' ? 'p-0' : 'p-2 sm:p-4'}`}>
         
         {viewMode === 'grid' ? (
           /* MODO GRADE DE COMUNICAÇÃO */
-          <div className="flex-grow bg-white border border-[#ebeeed] rounded-2xl p-4 overflow-hidden shadow-sm flex flex-col gap-4">
+          <div className="flex-grow bg-white border border-[#ebeeed] rounded-2xl p-2.5 sm:p-4 overflow-hidden shadow-sm flex flex-col gap-2.5 sm:gap-4">
             
-            {/* Categorias no topo da prancha principal */}
-            <div className="flex gap-3 pb-3 border-b border-[#ebeeed] overflow-x-auto scrollbar-none shrink-0 items-center">
+            {/* Categorias no topo da prancha principal - Responsiva (Scroll em Celular, Fixa em Tablet) */}
+            <div className="flex overflow-x-auto whitespace-nowrap scrollbar-none snap-x gap-2 sm:gap-3 pb-3 border-b border-[#ebeeed] shrink-0 items-center w-full">
               {/* Botão Geral */}
               <button
                 onClick={() => {
                   playClickSound();
                   setActiveCategoryId(null);
                 }}
-                className={`w-32 h-36 p-3 md:w-36 md:h-40 rounded-lg border-2 font-bold text-xs md:text-sm tracking-wider uppercase transition-all duration-150 active:scale-95 cursor-pointer flex flex-col justify-between shrink-0 ${
+                className={`w-[120px] h-28 p-2 sm:w-32 sm:h-36 sm:p-3 md:w-36 md:h-40 rounded-lg border-2 font-bold text-[10px] sm:text-xs md:text-sm tracking-wider uppercase transition-all duration-150 active:scale-95 cursor-pointer flex flex-col justify-between shrink-0 min-w-[120px] snap-center min-h-[48px] ${
                   !activeCategoryId
                     ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
                     : 'bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200'
                 }`}
                 style={{ touchAction: 'manipulation' }}
               >
-                <span className="font-bold text-center w-full truncate uppercase tracking-wider text-xs block mb-1">
+                <span className="font-bold text-center w-full truncate uppercase tracking-wider text-[10px] sm:text-xs block mb-1">
                   Geral
                 </span>
                 <div className="flex items-center justify-center w-full flex-grow">
-                  <LayoutGrid size={44} />
+                  <LayoutGrid className="w-8 h-8 sm:w-11 sm:h-11" />
                 </div>
               </button>
 
@@ -463,26 +471,26 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                     playClickSound();
                     setActiveCategoryId(cat.id);
                   }}
-                  className={`w-32 h-36 p-3 md:w-36 md:h-40 rounded-lg border-2 font-bold text-xs md:text-sm tracking-wider uppercase transition-all duration-150 active:scale-95 cursor-pointer flex flex-col justify-between shrink-0 ${cat.color} ${cat.textColor} ${
+                  className={`w-[120px] h-28 p-2 sm:w-32 sm:h-36 sm:p-3 md:w-36 md:h-40 rounded-lg border-2 font-bold text-[10px] sm:text-xs md:text-sm tracking-wider uppercase transition-all duration-150 active:scale-95 cursor-pointer flex flex-col justify-between shrink-0 min-w-[120px] snap-center min-h-[48px] ${cat.color} ${cat.textColor} ${
                     activeCategoryId === cat.id
                       ? 'ring-4 ring-amber-200 border-amber-400 scale-95 shadow-inner'
                       : 'border-slate-300'
                   }`}
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <span className="font-bold text-center w-full truncate uppercase tracking-wider text-xs block mb-1">
+                  <span className="font-bold text-center w-full truncate uppercase tracking-wider text-[10px] sm:text-xs block mb-1">
                     {cat.label}
                   </span>
                   <div className="flex items-center justify-center w-full flex-grow">
-                    <FolderOpen size={44} />
+                    <FolderOpen className="w-8 h-8 sm:w-11 sm:h-11" />
                   </div>
                 </button>
               ))}
             </div>
 
-            {/* Grade de Cards */}
+            {/* Grade de Cards Adaptativa */}
             <div className="flex-grow overflow-y-auto pr-1">
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-3 justify-items-center">
+              <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-8 gap-2 sm:gap-3 md:gap-4 justify-items-center">
                 
                 {/* Botão voltar dentro da subcategoria */}
                 {activeCategoryId && (
@@ -491,13 +499,14 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                       playClickSound();
                       setActiveCategoryId(null);
                     }}
-                    className="w-32 h-36 p-3 md:w-36 md:h-40 border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 rounded-lg flex flex-col items-center justify-between active:scale-95"
+                    className="w-full max-w-[144px] h-28 sm:w-32 sm:h-36 md:w-36 md:h-40 p-2 sm:p-3 border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 rounded-lg flex flex-col items-center justify-between active:scale-95 cursor-pointer min-h-[48px]"
+                    style={{ touchAction: 'manipulation' }}
                   >
-                    <span className="font-bold text-center w-full uppercase tracking-wider text-xs block">
+                    <span className="font-bold text-center w-full uppercase tracking-wider text-xs md:text-sm block">
                       Voltar
                     </span>
                     <div className="flex items-center justify-center flex-grow">
-                      <ChevronLeft size={44} />
+                      <ChevronLeft className="w-8 h-8 sm:w-11 sm:h-11 md:w-12 md:h-12" />
                     </div>
                   </SafeTouch>
                 )}
@@ -549,8 +558,8 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                 <button
                   key={char}
                   onClick={() => handleKeyPress(char)}
-                  className="bg-white border-2 border-black text-black font-black text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer"
-                  style={{ gridColumn: 'span 2 / span 2' }}
+                  className="bg-white border-2 border-black text-black font-black text-lg sm:text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer min-h-[48px]"
+                  style={{ gridColumn: 'span 2 / span 2', touchAction: 'manipulation' }}
                 >
                   {char}
                 </button>
@@ -561,8 +570,8 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                 <button
                   key={char}
                   onClick={() => handleKeyPress(char)}
-                  className="bg-white border-2 border-black text-black font-black text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer"
-                  style={{ gridColumn: 'span 2 / span 2' }}
+                  className="bg-white border-2 border-black text-black font-black text-lg sm:text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer min-h-[48px]"
+                  style={{ gridColumn: 'span 2 / span 2', touchAction: 'manipulation' }}
                 >
                   {char}
                 </button>
@@ -574,8 +583,8 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                 <button
                   key={char}
                   onClick={() => handleKeyPress(char)}
-                  className="bg-white border-2 border-black text-black font-black text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer"
-                  style={{ gridColumn: 'span 2 / span 2' }}
+                  className="bg-white border-2 border-black text-black font-black text-lg sm:text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer min-h-[48px]"
+                  style={{ gridColumn: 'span 2 / span 2', touchAction: 'manipulation' }}
                 >
                   {char}
                 </button>
@@ -588,8 +597,8 @@ export const MainScreen: React.FC<MainScreenProps> = ({
                 <button
                   key={char}
                   onClick={() => handleKeyPress(char)}
-                  className="bg-white border-2 border-black text-black font-black text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer"
-                  style={{ gridColumn: 'span 2 / span 2' }}
+                  className="bg-white border-2 border-black text-black font-black text-lg sm:text-2xl rounded-xl hover:bg-slate-100 active:bg-slate-200 active:scale-95 shadow-sm focus:outline-none flex items-center justify-center h-full w-full cursor-pointer min-h-[48px]"
+                  style={{ gridColumn: 'span 2 / span 2', touchAction: 'manipulation' }}
                 >
                   {char}
                 </button>
@@ -600,8 +609,8 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               {/* Espaço */}
               <button
                 onClick={handleKeySpace}
-                className="bg-white border-2 border-black text-black font-black text-lg uppercase rounded-xl hover:bg-slate-100 active:bg-slate-200 flex items-center justify-center shadow-sm h-full w-full cursor-pointer"
-                style={{ gridColumn: 'span 12 / span 12' }}
+                className="bg-white border-2 border-black text-black font-black text-sm sm:text-lg uppercase rounded-xl hover:bg-slate-100 active:bg-slate-200 flex items-center justify-center shadow-sm h-full w-full cursor-pointer min-h-[48px]"
+                style={{ gridColumn: 'span 12 / span 12', touchAction: 'manipulation' }}
               >
                 Espaço
               </button>
@@ -609,21 +618,21 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               {/* Backspace do teclado */}
               <button
                 onClick={handleKeyBackspace}
-                className="bg-white border-2 border-black text-black font-black flex items-center justify-center rounded-xl hover:bg-slate-100 active:bg-slate-200 shadow-sm h-full w-full cursor-pointer"
-                style={{ gridColumn: 'span 5 / span 5' }}
+                className="bg-white border-2 border-black text-black font-black flex items-center justify-center rounded-xl hover:bg-slate-100 active:bg-slate-200 shadow-sm h-full w-full cursor-pointer min-h-[48px]"
+                style={{ gridColumn: 'span 5 / span 5', touchAction: 'manipulation' }}
                 title="Apagar"
               >
-                <Delete size={26} />
+                <Delete className="w-5 h-5 sm:w-6.5 sm:h-6.5" />
               </button>
 
               {/* Limpar */}
               <button
                 onClick={handleClearAll}
-                className="bg-[#ffdad6] hover:bg-red-200 border-2 border-black text-[#93000a] font-black flex items-center justify-center rounded-xl active:scale-95 shadow-sm h-full w-full cursor-pointer"
-                style={{ gridColumn: 'span 3 / span 3' }}
+                className="bg-[#ffdad6] hover:bg-red-200 border-2 border-black text-[#93000a] font-black flex items-center justify-center rounded-xl active:scale-95 shadow-sm h-full w-full cursor-pointer min-h-[48px]"
+                style={{ gridColumn: 'span 3 / span 3', touchAction: 'manipulation' }}
                 title="Limpar tudo"
               >
-                <Trash2 size={26} />
+                <Trash2 className="w-5 h-5 sm:w-6.5 sm:h-6.5" />
               </button>
             </div>
 
@@ -649,13 +658,14 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               triggerVibrate(8);
               setViewMode('grid');
             }}
-            className={`px-6 h-full transition-all duration-150 active:scale-95 flex items-center justify-center border-r border-[#ebeeed] ${
+            className={`px-6 h-full transition-all duration-150 active:scale-95 flex items-center justify-center border-r border-[#ebeeed] min-h-[48px] cursor-pointer ${
               viewMode === 'grid'
                 ? 'bg-slate-900 text-white'
                 : 'bg-white text-slate-600 hover:bg-slate-50'
             }`}
+            style={{ touchAction: 'manipulation' }}
           >
-            <LayoutGrid size={26} />
+            <LayoutGrid className="w-6 h-6" />
           </button>
 
           {/* Botão de Teclado */}
@@ -665,21 +675,23 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               triggerVibrate(8);
               setViewMode('keyboard');
             }}
-            className={`px-6 h-full transition-all duration-150 active:scale-95 flex items-center justify-center border-r border-[#ebeeed] ${
+            className={`px-6 h-full transition-all duration-150 active:scale-95 flex items-center justify-center border-r border-[#ebeeed] min-h-[48px] cursor-pointer ${
               viewMode === 'keyboard'
                 ? 'bg-slate-900 text-white'
                 : 'bg-white text-slate-600 hover:bg-slate-50'
             }`}
+            style={{ touchAction: 'manipulation' }}
           >
-            <Keyboard size={26} />
+            <Keyboard className="w-6 h-6" />
           </button>
 
           {/* Botão Configurações (Laranja) - Agora o Último */}
           <SafeTouch
             onClick={handleSettingsClick}
-            className="px-6 h-full bg-white text-[#944a00] hover:bg-orange-50 transition-all duration-150 active:scale-95 flex items-center justify-center"
+            className="px-6 h-full bg-white text-[#944a00] hover:bg-orange-50 transition-all duration-150 active:scale-95 flex items-center justify-center min-h-[48px] cursor-pointer"
+            style={{ touchAction: 'manipulation' }}
           >
-            <Settings size={26} />
+            <Settings className="w-6 h-6" />
           </SafeTouch>
         </div>
       </footer>
