@@ -310,11 +310,11 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   return (
     <div className="flex flex-col h-screen bg-[#f7faf9] overflow-hidden select-none">
       
-      {/* 1. BARRA SUPERIOR (CONFORME PROTÓTIPO ADAPTADO) */}
-      <header className="bg-white border-b border-[#ebeeed] px-4 py-3 md:px-6 md:py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 min-h-[96px] md:h-24 shrink-0">
+      {/* 1. BARRA SUPERIOR (CONFORME PROTÓTIPO) */}
+      <header className="bg-white border-b border-[#ebeeed] px-3 py-3 md:px-6 md:py-4 flex items-center justify-between gap-2 md:gap-4 h-20 md:h-24 shrink-0">
         
-        {/* Linha 1: Navegação e Campo de Entrada */}
-        <div className="flex items-center gap-2 w-full md:w-auto md:flex-grow">
+        {/* Botões de Navegação Principal */}
+        <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
           {/* Botão Home */}
           <SafeTouch
             onClick={() => {
@@ -322,113 +322,113 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               setActiveCategoryId(null);
               setViewMode('grid');
             }}
-            className="flex items-center justify-center p-2.5 md:p-3 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-12 h-12 md:w-14 md:h-14 shrink-0 cursor-pointer min-h-[48px]"
+            className="flex items-center justify-center p-2 md:p-3 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-11 h-11 md:w-14 md:h-14 shrink-0 cursor-pointer min-h-[44px] md:min-h-[48px]"
             title="Início"
             style={{ touchAction: 'manipulation' }}
           >
-            <Home className="w-6 h-6 md:w-7 md:h-7" />
+            <Home className="w-5.5 h-5.5 md:w-7 md:h-7" />
           </SafeTouch>
 
-          {/* Fila da Frase (Input de Frase) - Rolagem horizontal automática */}
-          <div className="flex-grow flex items-center bg-white border border-slate-300 rounded-xl h-12 md:h-14 px-3 overflow-x-auto gap-2 scrollbar-none">
-            {selectedCards.length === 0 ? (
-              <span className="text-slate-400 text-xs md:text-sm font-semibold pl-2 uppercase tracking-wide select-none">
-                Monte sua frase aqui...
-              </span>
-            ) : (
-              <>
-                {selectedCards.map((card, idx) => {
-                  const isKeyboard = card.imageSource === 'Keyboard';
-                  const isSpeaking = speakingIndex === idx;
-
-                  if (isKeyboard) {
-                    return (
-                      <div
-                        key={`${card.id || idx}-${idx}`}
-                        className={`flex items-center gap-1.5 px-2 py-0.5 md:px-3 md:py-1 bg-[#ffdcc5] border border-amber-300 rounded-lg h-8 md:h-10 shadow-sm shrink-0 ${
-                          isSpeaking ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
-                        }`}
-                      >
-                        <Keyboard className="text-[#944a00] w-4 h-4 md:w-5 md:h-5" />
-                        <span className="text-[10px] md:text-xs font-bold text-slate-800 uppercase tracking-wider">{card.label}</span>
-                        {idx === selectedCards.length - 1 && viewMode === 'keyboard' && (
-                          <span className="animate-pulse h-3 w-0.5 bg-[#944a00] inline-block"></span>
-                        )}
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={`${card.id || idx}-${idx}`}
-                      className={`flex items-center gap-1.5 px-2 py-0.5 md:px-3 md:py-1 bg-white border rounded-lg h-8 md:h-10 shadow-sm border-slate-300 shrink-0 ${
-                        isSpeaking ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
-                      }`}
-                    >
-                      {card.imageSource.startsWith('data:image') ? (
-                        <img src={card.imageSource} alt="" className="w-5 h-5 md:w-6 md:h-6 object-cover rounded" />
-                      ) : (
-                        React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, {
-                          className: 'text-[#944a00] w-4 h-4 md:w-5 md:h-5'
-                        })
-                      )}
-                      <span className="text-[10px] md:text-xs font-bold text-slate-800 uppercase">{card.label}</span>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-          </div>
-
-          {/* Botão de Perfil / PAINEL */}
+          {/* Botão de Perfil */}
           <SafeTouch
             onClick={() => {
               playClickSound();
               setShowProfileModal(true);
             }}
-            className="flex flex-col items-center justify-center p-1 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-12 h-12 md:w-14 md:h-14 relative cursor-pointer shrink-0 min-h-[48px]"
+            className="flex flex-col items-center justify-center p-1 rounded-xl border-2 border-[#944a00] bg-white hover:bg-orange-50 text-[#944a00] w-11 h-11 md:w-14 md:h-14 relative cursor-pointer shrink-0 min-h-[44px] md:min-h-[48px]"
             title="Alternar Perfil"
             style={{ touchAction: 'manipulation' }}
           >
-            <User className="w-5 h-5 md:w-6 md:h-6" />
-            <span className="text-[7px] md:text-[8px] font-black text-[#944a00] uppercase truncate w-10 md:w-12 text-center mt-0.5">
+            <User className="w-4.5 h-4.5 md:w-6 md:h-6" />
+            <span className="text-[6px] md:text-[8px] font-black text-[#944a00] uppercase truncate w-9 md:w-12 text-center mt-0.5 leading-none">
               {profiles.find(p => p.id === currentProfileId)?.name || 'PADRÃO'}
             </span>
           </SafeTouch>
         </div>
 
-        {/* Linha 2: Controles de Frase - Agrupados e Confortáveis */}
-        <div className="flex items-center gap-2 w-full md:w-auto md:shrink-0 justify-between md:justify-start">
+        {/* Fila da Frase (Input de Frase) - Sempre visível e flex-grow */}
+        <div className="flex-grow flex items-center bg-white border border-slate-300 rounded-xl h-11 md:h-14 px-2 md:px-3 overflow-x-auto gap-1.5 md:gap-2 scrollbar-none mx-1 md:mx-0">
+          {selectedCards.length === 0 ? (
+            <span className="text-slate-400 text-[10px] md:text-sm font-semibold pl-1 md:pl-2 uppercase tracking-wide select-none">
+              Monte sua frase...
+            </span>
+          ) : (
+            <>
+              {selectedCards.map((card, idx) => {
+                const isKeyboard = card.imageSource === 'Keyboard';
+                const isSpeaking = speakingIndex === idx;
+
+                if (isKeyboard) {
+                  return (
+                    <div
+                      key={`${card.id || idx}-${idx}`}
+                      className={`flex items-center gap-1 px-1.5 py-0.5 md:px-3 md:py-1 bg-[#ffdcc5] border border-amber-300 rounded-lg h-7 md:h-10 shadow-sm shrink-0 ${
+                        isSpeaking ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
+                      }`}
+                    >
+                      <Keyboard className="text-[#944a00] w-3.5 h-3.5 md:w-5 md:h-5" />
+                      <span className="text-[9px] md:text-xs font-bold text-slate-800 uppercase tracking-wider">{card.label}</span>
+                      {idx === selectedCards.length - 1 && viewMode === 'keyboard' && (
+                        <span className="animate-pulse h-3 w-0.5 bg-[#944a00] inline-block"></span>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={`${card.id || idx}-${idx}`}
+                    className={`flex items-center gap-1 px-1.5 py-0.5 md:px-3 md:py-1 bg-white border rounded-lg h-7 md:h-10 shadow-sm border-slate-300 shrink-0 ${
+                      isSpeaking ? 'ring-2 ring-emerald-500 border-emerald-500' : ''
+                    }`}
+                  >
+                    {card.imageSource.startsWith('data:image') ? (
+                      <img src={card.imageSource} alt="" className="w-4 h-4 md:w-6 md:h-6 object-cover rounded" />
+                    ) : (
+                      React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, {
+                        className: 'text-[#944a00] w-3.5 h-3.5 md:w-5 md:h-5'
+                      })
+                    )}
+                    <span className="text-[9px] md:text-xs font-bold text-slate-800 uppercase">{card.label}</span>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+
+        {/* Controles de Frase - Sempre visíveis lado a lado no canto direito */}
+        <div className="flex items-center gap-1 md:gap-2 shrink-0">
           {/* Botão APAGAR (Amarelo) */}
           <SafeTouch
             onClick={handleRemoveLast}
             disabled={selectedCards.length === 0}
-            className="flex-1 md:flex-none flex flex-col items-center justify-center bg-[#fed023] hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed border border-[#6f5900]/20 rounded-xl w-auto md:w-14 h-12 md:h-14 shadow-sm min-h-[48px] cursor-pointer"
+            className="flex flex-col items-center justify-center bg-[#fed023] hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed border border-[#6f5900]/20 rounded-xl w-11 h-11 md:w-14 md:h-14 shadow-sm min-h-[44px] md:min-h-[48px] cursor-pointer"
             style={{ touchAction: 'manipulation' }}
           >
-            <Delete className="text-[#6f5900] w-5 h-5 md:w-6 md:h-6" />
-            <span className="text-[8px] md:text-[9px] font-extrabold text-[#6f5900] tracking-wider mt-0.5 uppercase">Apagar</span>
+            <Delete className="text-[#6f5900] w-4.5 h-4.5 md:w-6 md:h-6" />
+            <span className="text-[7px] md:text-[9px] font-extrabold text-[#6f5900] tracking-wider mt-0.5 uppercase leading-none">Apagar</span>
           </SafeTouch>
 
           {/* Botão LIMPAR (Vermelho/Rosa) */}
           <SafeTouch
             onClick={handleClearAll}
             disabled={selectedCards.length === 0}
-            className="flex-1 md:flex-none flex flex-col items-center justify-center bg-[#ffdad6] hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed border border-rose-300 rounded-xl w-auto md:w-14 h-12 md:h-14 shadow-sm min-h-[48px] cursor-pointer"
+            className="flex flex-col items-center justify-center bg-[#ffdad6] hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed border border-rose-300 rounded-xl w-11 h-11 md:w-14 md:h-14 shadow-sm min-h-[44px] md:min-h-[48px] cursor-pointer"
             style={{ touchAction: 'manipulation' }}
           >
-            <Trash2 className="text-[#93000a] w-5 h-5 md:w-6 md:h-6" />
-            <span className="text-[8px] md:text-[9px] font-extrabold text-[#93000a] tracking-wider mt-0.5 uppercase">Limpar</span>
+            <Trash2 className="text-[#93000a] w-4.5 h-4.5 md:w-6 md:h-6" />
+            <span className="text-[7px] md:text-[9px] font-extrabold text-[#93000a] tracking-wider mt-0.5 uppercase leading-none">Limpar</span>
           </SafeTouch>
 
           {/* Botão FALAR (Verde) */}
           <SafeTouch
             onClick={speakPhrase}
             disabled={selectedCards.length === 0}
-            className="flex-[2] md:flex-none flex items-center justify-center gap-2 bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed px-4 rounded-xl h-12 md:h-14 shadow-md font-bold text-xs md:text-sm uppercase tracking-wider min-h-[48px] cursor-pointer"
+            className="flex items-center justify-center gap-1 md:gap-2 bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed px-2.5 md:px-4 rounded-xl h-11 md:h-14 shadow-md font-bold text-[10px] md:text-sm uppercase tracking-wider min-h-[44px] md:min-h-[48px] cursor-pointer"
             style={{ touchAction: 'manipulation' }}
           >
-            <Volume2 className="w-5 h-5 md:w-6 md:h-6" />
+            <Volume2 className="w-4.5 h-4.5 md:w-6 md:h-6" />
             <span>Falar</span>
           </SafeTouch>
         </div>
