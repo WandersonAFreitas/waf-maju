@@ -75,7 +75,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
   const [draggedCardId, setDraggedCardId] = useState<number | null>(null);
   const [justDraggedId, setJustDraggedId] = useState<number | null>(null);
   const [mode, setMode] = useState<'edit' | 'order'>('edit');
+  const [selectedCardToMoveId, setSelectedCardToMoveId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  React.useEffect(() => {
+    setSelectedCardToMoveId(null);
+  }, [activeCategoryId, mode]);
 
   // ─── MODAL: Criar Novo Card ────────────────────────────────────────────────
   const [showCreateCardModal, setShowCreateCardModal] = useState(false);
@@ -328,27 +333,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
     }
   };
 
-  const handleMoveCard = async (cardId: number, direction: 'up' | 'down') => {
-    const currentCard = cards.find(c => c.id === cardId);
-    if (!currentCard) return;
-    const sameCategoryCards = cards
-      .filter(c => c.categoryId === currentCard.categoryId)
-      .sort((a, b) => a.order - b.order);
-    const index = sameCategoryCards.findIndex(c => c.id === cardId);
-    if (index === -1) return;
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === sameCategoryCards.length - 1) return;
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    await db.transaction('rw', db.actionCards, async () => {
-      for (let idx = 0; idx < sameCategoryCards.length; idx++) {
-        sameCategoryCards[idx].order = idx + 1;
-      }
-      const temp = sameCategoryCards[index].order;
-      sameCategoryCards[index].order = sameCategoryCards[targetIndex].order;
-      sameCategoryCards[targetIndex].order = temp;
-      await Promise.all(sameCategoryCards.map(c => db.actionCards.update(c.id!, { order: c.order })));
-    });
-  };
+
 
   const handleMoveCategory = async (catId: string, direction: 'up' | 'down') => {
     const sortedCategories = [...categories].sort((a, b) => a.order - b.order);
@@ -381,27 +366,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
     }
   };
 
-  // ─── DRAG AND DROP ─────────────────────────────────────────────────────────
-  const handleDragStart = (e: React.DragEvent, id: number) => {
-    setDraggedCardId(id);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', id.toString());
-  };
-
-  const handleDragEnd = () => {
-    const id = draggedCardId;
-    setDraggedCardId(null);
-    setJustDraggedId(id);
-    setTimeout(() => {
-      setJustDraggedId(null);
-    }, 100);
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetId: number) => {
-    e.preventDefault();
-    const draggedIdStr = e.dataTransfer.getData('text/plain');
-    const draggedId = parseInt(draggedIdStr, 10);
-    if (isNaN(draggedId) || draggedId === targetId) return;
+  // ─── DRAG AND DROP & SELEÇÃO DE MOVIMENTAÇÃO ───────────────────────────────
+  const moveCardToTargetPosition = async (draggedId: number, targetId: number) => {
+    if (draggedId === targetId) return;
 
     const activeCatId = activeCategoryId === 'raiz' ? undefined : activeCategoryId;
     const targetCards = cards
@@ -425,6 +392,46 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
         }
       }
     });
+  };
+
+  const handleCardClickInOrderMode = async (cardId: number) => {
+    if (selectedCardToMoveId === null) {
+      setSelectedCardToMoveId(cardId);
+    } else if (selectedCardToMoveId === cardId) {
+      setSelectedCardToMoveId(null);
+    } else {
+      await moveCardToTargetPosition(selectedCardToMoveId, cardId);
+      setSelectedCardToMoveId(null);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, id: number) => {
+    // Apenas permite iniciar o arrasto se for o card selecionado
+    if (id !== selectedCardToMoveId) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedCardId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id.toString());
+  };
+
+  const handleDragEnd = () => {
+    const id = draggedCardId;
+    setDraggedCardId(null);
+    setJustDraggedId(id);
+    setTimeout(() => {
+      setJustDraggedId(null);
+    }, 100);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetId: number) => {
+    e.preventDefault();
+    const draggedIdStr = e.dataTransfer.getData('text/plain');
+    const draggedId = parseInt(draggedIdStr, 10);
+    if (isNaN(draggedId)) return;
+    await moveCardToTargetPosition(draggedId, targetId);
+    setSelectedCardToMoveId(null);
   };
 
   const getIconColorClass = (colorClass: string) => {
@@ -735,6 +742,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
                 </div>
               </div>
 
+              {/* Instruções de Ordenação */}
+              {mode === 'order' && (
+                <div className="mb-4 p-3.5 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold rounded-2xl flex items-center gap-2.5 select-none animate-fade-in shrink-0">
+                  <LucideIcons.Lightbulb className="text-blue-600 shrink-0" size={18} />
+                  <span>
+                    {selectedCardToMoveId === null
+                      ? 'Passo 1: Clique ou toque no card que deseja mover para selecioná-lo.'
+                      : 'Passo 2: Arraste o card selecionado ou toque no card de destino para mudar a ordem.'}
+                  </span>
+                </div>
+              )}
+
               {/* Corpo da Pré-visualização */}
               <div className="flex-grow flex flex-col justify-between">
                 {(() => {
@@ -759,33 +778,52 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
 
                   return (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pb-4">
-                      {filteredCards.map((card, idx) => {
-                        const isFirst = idx === 0;
-                        const isLast = idx === filteredCards.length - 1;
+                      {filteredCards.map((card) => {
                         const categoryObj = categories.find(c => c.id === card.categoryId);
                         const cardColor = card.color || (categoryObj ? categoryObj.color : 'bg-white');
                         const iconColorClasses = getIconColorClass(cardColor);
+                        const isSelectedForMove = mode === 'order' && selectedCardToMoveId === card.id;
 
                         return (
                           <div
                             key={card.id}
-                            draggable
+                            draggable={mode === 'order' && isSelectedForMove}
                             onDragStart={(e) => handleDragStart(e, card.id!)}
                             onDragOver={(e) => e.preventDefault()}
                             onDragEnd={handleDragEnd}
                             onDrop={(e) => handleDrop(e, card.id!)}
                             onClick={() => {
-                              if (mode !== 'edit' || justDraggedId === card.id) return;
-                              setEditingCard(card);
+                              if (mode === 'order') {
+                                if (justDraggedId === card.id) return;
+                                handleCardClickInOrderMode(card.id!);
+                              } else {
+                                if (justDraggedId === card.id) return;
+                                setEditingCard(card);
+                              }
                             }}
-                            className={`group relative aspect-square border-2 border-slate-200 rounded-3xl flex flex-col items-center justify-between p-3.5 shadow-sm transition-all hover:shadow-md hover:border-blue-400 select-none ${
-                              cardColor
-                            } ${
-                              mode === 'edit' ? 'hover:scale-[1.02] cursor-pointer' : 'cursor-grab active:cursor-grabbing'
+                            className={`group relative aspect-square border-2 rounded-3xl flex flex-col items-center justify-between p-3.5 shadow-sm transition-all select-none ${cardColor} ${
+                              isSelectedForMove
+                                ? 'border-blue-500 ring-4 ring-blue-400/50 scale-105 shadow-md z-10 animate-pulse cursor-grabbing'
+                                : mode === 'order'
+                                  ? 'border-slate-200 hover:border-blue-300 hover:scale-[1.02] cursor-pointer'
+                                  : 'border-slate-200 hover:scale-[1.02] cursor-pointer hover:border-blue-400'
                             } ${
                               draggedCardId === card.id ? 'opacity-30 scale-95 border-dashed border-blue-500' : ''
                             }`}
                           >
+                            {/* Badge de Seleção no Modo Ordenar */}
+                            {isSelectedForMove && (
+                              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white text-[9px] sm:text-[10px] font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider flex items-center gap-1 shrink-0 whitespace-nowrap z-20">
+                                <LucideIcons.Move size={10} className="animate-spin" />
+                                Mover este
+                              </div>
+                            )}
+
+                            {/* Hover overlay para indicar destino no modo de ordenação */}
+                            {mode === 'order' && selectedCardToMoveId !== null && !isSelectedForMove && (
+                              <div className="absolute inset-0 bg-blue-50/15 group-hover:bg-blue-500/10 rounded-3xl transition-colors pointer-events-none border border-transparent group-hover:border-blue-400 z-10" />
+                            )}
+
                             {/* Barra de Ações Superior (Apenas no Modo Editar) */}
                             {mode === 'edit' && (
                               <div className="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-xs rounded-xl p-0.5 border border-slate-150 shadow-sm" onClick={(e) => e.stopPropagation()}>
@@ -804,30 +842,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
                                   title="Excluir card"
                                 >
                                   <LucideIcons.Trash2 size={16} />
-                                </button>
-                              </div>
-                            )}
-
-                            {/* Sobreposição do Modo de Ordenar (Chevron Esquerda/Direita grandes para mobile touch) */}
-                            {mode === 'order' && (
-                              <div className="absolute inset-0 bg-slate-900/35 backdrop-blur-xs rounded-3xl flex items-center justify-between p-2 gap-2" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveCard(card.id!, 'up')}
-                                  disabled={isFirst}
-                                  className="flex-1 h-full bg-white hover:bg-slate-100 disabled:bg-slate-200 disabled:opacity-40 text-slate-700 disabled:text-slate-400 rounded-2xl flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer border border-slate-200 min-h-[44px]"
-                                  title="Mover para esquerda"
-                                >
-                                  <LucideIcons.ChevronLeft size={24} className="stroke-[2.5]" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveCard(card.id!, 'down')}
-                                  disabled={isLast}
-                                  className="flex-1 h-full bg-white hover:bg-slate-100 disabled:bg-slate-200 disabled:opacity-40 text-slate-700 disabled:text-slate-400 rounded-2xl flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer border border-slate-200 min-h-[44px]"
-                                  title="Mover para direita"
-                                >
-                                  <LucideIcons.ChevronRight size={24} className="stroke-[2.5]" />
                                 </button>
                               </div>
                             )}
