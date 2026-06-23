@@ -13,44 +13,78 @@ interface CardProps {
 
 // Mapeamento explícito de ícones usados no sistema para evitar problemas de bundler e tree-shaking
 const iconMap: Record<string, React.ComponentType<any>> = {
-  Hand: LucideIcons.Hand,
+  // Essenciais / Feedback
+  ThumbsUp: LucideIcons.ThumbsUp,
   ThumbsDown: LucideIcons.ThumbsDown,
   Check: LucideIcons.Check,
   X: LucideIcons.X,
   HelpCircle: LucideIcons.HelpCircle,
   Heart: LucideIcons.Heart,
+  AlertCircle: LucideIcons.AlertCircle,
+  MessageSquare: LucideIcons.MessageSquare,
+  // Pessoas & Relações
   User: LucideIcons.User,
   UserCheck: LucideIcons.UserCheck,
-  GraduationCap: LucideIcons.GraduationCap,
   Users: LucideIcons.Users,
-  Gamepad2: LucideIcons.Gamepad2,
-  Utensils: LucideIcons.Utensils,
-  CupSoda: LucideIcons.CupSoda,
-  Moon: LucideIcons.Moon,
-  MapPin: LucideIcons.MapPin,
-  Eye: LucideIcons.Eye,
-  Droplet: LucideIcons.Droplet,
-  Apple: LucideIcons.Apple,
-  Cookie: LucideIcons.Cookie,
-  GlassWater: LucideIcons.GlassWater,
+  UserPlus: LucideIcons.UserPlus,
+  GraduationCap: LucideIcons.GraduationCap,
+  Baby: LucideIcons.Baby,
+  // Sentimentos & Estados
   Smile: LucideIcons.Smile,
   Frown: LucideIcons.Frown,
   Angry: LucideIcons.Angry,
+  Laugh: LucideIcons.Laugh,
+  BatteryCharging: LucideIcons.BatteryCharging,
   BatteryLow: LucideIcons.BatteryLow,
   Activity: LucideIcons.Activity,
+  Thermometer: LucideIcons.Thermometer,
+  // Necessidades / Alimentação / Sono
+  Utensils: LucideIcons.Utensils,
+  GlassWater: LucideIcons.GlassWater,
+  CupSoda: LucideIcons.CupSoda,
+  Bed: LucideIcons.Bed,
+  Moon: LucideIcons.Moon,
+  Sun: LucideIcons.Sun,
+  Apple: LucideIcons.Apple,
+  Cookie: LucideIcons.Cookie,
+  Pizza: LucideIcons.Pizza,
+  Cake: LucideIcons.Cake,
+  IceCream: LucideIcons.IceCream,
+  // Higiene / Saúde
+  Bath: LucideIcons.Bath,
+  ShowerHead: LucideIcons.ShowerHead,
+  Droplet: LucideIcons.Droplet,
+  Trash2: LucideIcons.Trash2,
+  ShieldAlert: LucideIcons.ShieldAlert,
+  // Ações / Brincadeiras / Mídia
+  Gamepad2: LucideIcons.Gamepad2,
   ToyBrick: LucideIcons.ToyBrick,
-  Tablet: LucideIcons.Tablet,
+  Puzzle: LucideIcons.Puzzle,
+  Music: LucideIcons.Music,
   Tv: LucideIcons.Tv,
-  Circle: LucideIcons.Circle,
   BookOpen: LucideIcons.BookOpen,
+  Pencil: LucideIcons.Pencil,
+  Brush: LucideIcons.Brush,
+  Speaker: LucideIcons.Speaker,
+  Volume2: LucideIcons.Volume2,
+  Megaphone: LucideIcons.Megaphone,
+  Hand: LucideIcons.Hand,
+  Eye: LucideIcons.Eye,
+  Ear: LucideIcons.Ear,
+  // Lugares & Transporte
   Home: LucideIcons.Home,
   School: LucideIcons.School,
   Trees: LucideIcons.Trees,
-  Bath: LucideIcons.Bath,
+  Store: LucideIcons.Store,
+  MapPin: LucideIcons.MapPin,
+  Car: LucideIcons.Car,
+  Bike: LucideIcons.Bike,
+  Footprints: LucideIcons.Footprints,
+  Clock: LucideIcons.Clock,
+  // Extras
   ChevronLeft: LucideIcons.ChevronLeft,
   Plus: LucideIcons.Plus,
   Settings: LucideIcons.Settings,
-  Trash2: LucideIcons.Trash2,
   Delete: LucideIcons.Delete
 };
 
@@ -105,7 +139,12 @@ export const CardComponent: React.FC<CardProps> = ({
             draggable={false}
           />
         ) : (
-          IconComponent && <IconComponent className="stroke-[1.75] w-8 h-8 sm:w-11 sm:h-11 md:w-12 md:h-12" />
+          IconComponent && (
+            <IconComponent 
+              className="stroke-[1.75] w-8 h-8 sm:w-11 sm:h-11 md:w-12 md:h-12 fill-current opacity-95" 
+              style={{ fillOpacity: 0.15 }}
+            />
+          )
         )}
       </div>
     </button>

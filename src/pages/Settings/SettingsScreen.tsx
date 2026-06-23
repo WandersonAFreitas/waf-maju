@@ -74,6 +74,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
   const [activeCategoryId, setActiveCategoryId] = useState<string>('raiz');
   const [draggedCardId, setDraggedCardId] = useState<number | null>(null);
   const [justDraggedId, setJustDraggedId] = useState<number | null>(null);
+  const [mode, setMode] = useState<'edit' | 'order'>('edit');
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // ─── MODAL: Criar Novo Card ────────────────────────────────────────────────
@@ -426,6 +427,41 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
     });
   };
 
+  const getIconColorClass = (colorClass: string) => {
+    const cleanColor = colorClass.split(' ')[0];
+    switch (cleanColor) {
+      case 'bg-amber-100': return 'text-amber-700 fill-amber-700/15';
+      case 'bg-emerald-100': return 'text-emerald-700 fill-emerald-700/15';
+      case 'bg-sky-100': return 'text-sky-700 fill-sky-700/15';
+      case 'bg-purple-100': return 'text-purple-700 fill-purple-700/15';
+      case 'bg-cyan-100': return 'text-cyan-700 fill-cyan-700/15';
+      case 'bg-rose-100': return 'text-rose-700 fill-rose-700/15';
+      case 'bg-red-100': return 'text-red-700 fill-red-700/15';
+      case 'bg-yellow-100': return 'text-yellow-700 fill-yellow-700/15';
+      case 'bg-indigo-100': return 'text-indigo-700 fill-indigo-700/15';
+      case 'bg-slate-100': return 'text-slate-700 fill-slate-700/15';
+      default: return 'text-blue-600 fill-blue-600/10';
+    }
+  };
+
+  const getIconSelectorColorClass = (iconName: string, isSelected: boolean) => {
+    if (isSelected) {
+      return { 
+        bg: 'bg-blue-50 border-blue-500 text-blue-600 ring-2 ring-blue-200', 
+        fill: 'fill-blue-600/15' 
+      };
+    }
+    const colors = [
+      { bg: 'bg-emerald-50/50 hover:bg-emerald-50 border-slate-150 text-emerald-600 hover:border-emerald-300', fill: 'fill-emerald-600/10' },
+      { bg: 'bg-amber-50/50 hover:bg-amber-50 border-slate-150 text-amber-600 hover:border-amber-300', fill: 'fill-amber-600/10' },
+      { bg: 'bg-sky-50/50 hover:bg-sky-50 border-slate-150 text-sky-600 hover:border-sky-300', fill: 'fill-sky-600/10' },
+      { bg: 'bg-purple-50/50 hover:bg-purple-50 border-slate-150 text-purple-600 hover:border-purple-300', fill: 'fill-purple-600/10' },
+      { bg: 'bg-rose-50/50 hover:bg-rose-50 border-slate-150 text-rose-600 hover:border-rose-300', fill: 'fill-rose-600/10' }
+    ];
+    const charSum = iconName.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return colors[charSum % colors.length];
+  };
+
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col select-none font-sans pb-10">
@@ -669,8 +705,33 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
                     )}
                   </p>
                 </div>
-                <div className="text-[10px] text-slate-400 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 font-medium select-none">
-                  💡 Arraste os cards ou use as setas para reordenar
+                
+                {/* Segmented Control para Alternar Modos: Editar vs Ordenar */}
+                <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 border border-slate-200 items-center">
+                  <button
+                    type="button"
+                    onClick={() => setMode('edit')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer select-none ${
+                      mode === 'edit'
+                        ? 'bg-white text-blue-600 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <LucideIcons.Edit size={14} />
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('order')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer select-none ${
+                      mode === 'order'
+                        ? 'bg-white text-blue-600 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <LucideIcons.ArrowUpDown size={14} />
+                    Ordenar
+                  </button>
                 </div>
               </div>
 
@@ -701,6 +762,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
                       {filteredCards.map((card, idx) => {
                         const isFirst = idx === 0;
                         const isLast = idx === filteredCards.length - 1;
+                        const categoryObj = categories.find(c => c.id === card.categoryId);
+                        const cardColor = card.color || (categoryObj ? categoryObj.color : 'bg-white');
+                        const iconColorClasses = getIconColorClass(cardColor);
 
                         return (
                           <div
@@ -711,68 +775,71 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
                             onDragEnd={handleDragEnd}
                             onDrop={(e) => handleDrop(e, card.id!)}
                             onClick={() => {
-                              if (justDraggedId === card.id) return;
+                              if (mode !== 'edit' || justDraggedId === card.id) return;
                               setEditingCard(card);
                             }}
-                            className={`group relative aspect-square border-2 border-slate-200 rounded-3xl flex flex-col items-center justify-between p-3.5 shadow-sm transition-all hover:shadow-md hover:border-blue-400 hover:scale-[1.02] cursor-pointer select-none ${
-                              card.color || 'bg-white'
+                            className={`group relative aspect-square border-2 border-slate-200 rounded-3xl flex flex-col items-center justify-between p-3.5 shadow-sm transition-all hover:shadow-md hover:border-blue-400 select-none ${
+                              cardColor
+                            } ${
+                              mode === 'edit' ? 'hover:scale-[1.02] cursor-pointer' : 'cursor-grab active:cursor-grabbing'
                             } ${
                               draggedCardId === card.id ? 'opacity-30 scale-95 border-dashed border-blue-500' : ''
                             }`}
                           >
-                            {/* Barra de Ações Superior (Aparece no hover no desktop, visível em opacidade 80% no mobile) */}
-                            <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-xs rounded-xl p-0.5 border border-slate-150 shadow-sm gap-0.5" onClick={(e) => e.stopPropagation()}>
-                              {/* Setas de Reordenação (Touch Friendly) */}
-                              <div className="flex gap-0.5">
+                            {/* Barra de Ações Superior (Apenas no Modo Editar) */}
+                            {mode === 'edit' && (
+                              <div className="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-xs rounded-xl p-0.5 border border-slate-150 shadow-sm" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCard(card)}
+                                  className="p-1.5 text-slate-500 hover:text-[#944a00] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                  title="Editar card"
+                                >
+                                  <LucideIcons.Edit size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCard(card.id)}
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Excluir card"
+                                >
+                                  <LucideIcons.Trash2 size={16} />
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Sobreposição do Modo de Ordenar (Chevron Esquerda/Direita grandes para mobile touch) */}
+                            {mode === 'order' && (
+                              <div className="absolute inset-0 bg-slate-900/35 backdrop-blur-xs rounded-3xl flex items-center justify-between p-2 gap-2" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   type="button"
                                   onClick={() => handleMoveCard(card.id!, 'up')}
                                   disabled={isFirst}
-                                  className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-20 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                  className="flex-1 h-full bg-white hover:bg-slate-100 disabled:bg-slate-200 disabled:opacity-40 text-slate-700 disabled:text-slate-400 rounded-2xl flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer border border-slate-200 min-h-[44px]"
                                   title="Mover para esquerda"
                                 >
-                                  <LucideIcons.ChevronLeft size={14} />
+                                  <LucideIcons.ChevronLeft size={24} className="stroke-[2.5]" />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleMoveCard(card.id!, 'down')}
                                   disabled={isLast}
-                                  className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-20 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                  className="flex-1 h-full bg-white hover:bg-slate-100 disabled:bg-slate-200 disabled:opacity-40 text-slate-700 disabled:text-slate-400 rounded-2xl flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer border border-slate-200 min-h-[44px]"
                                   title="Mover para direita"
                                 >
-                                  <LucideIcons.ChevronRight size={14} />
+                                  <LucideIcons.ChevronRight size={24} className="stroke-[2.5]" />
                                 </button>
                               </div>
+                            )}
 
-                              {/* Ações normais de Edição/Exclusão */}
-                              <div className="flex gap-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingCard(card)}
-                                  className="p-1 text-slate-500 hover:text-[#944a00] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                                  title="Editar card"
-                                >
-                                  <LucideIcons.Edit size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteCard(card.id)}
-                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Excluir card"
-                                >
-                                  <LucideIcons.Trash2 size={14} />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Mini-Card Thumbnail / Imagem ou Ícone */}
+                            {/* Mini-Card Thumbnail / Imagem ou Ícone com Cores Correspondentes */}
                             <div className="flex-grow flex items-center justify-center w-full mt-4">
-                              <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-150 p-1 shrink-0 select-none">
+                              <div className="w-14 h-14 bg-white/70 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-200/50 p-1 shrink-0 select-none shadow-xs">
                                 {card.imageSource.startsWith('data:image') ? (
                                   <img src={card.imageSource} alt={card.label} className="w-full h-full object-cover rounded-lg" />
                                 ) : (
                                   React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, {
-                                    className: 'text-[#944a00] w-8 h-8'
+                                    className: `${iconColorClasses} w-8 h-8 stroke-[2]`
                                   })
                                 )}
                               </div>
@@ -873,10 +940,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
                   <div className="grid grid-cols-6 gap-2 h-48 overflow-y-auto p-2 border border-slate-100 rounded-2xl">
                     {AVAILABLE_ICONS.map(iconName => {
                       const Icon = (LucideIcons as any)[iconName] || LucideIcons.HelpCircle;
+                      const isSel = newCardSelectedIcon === iconName;
+                      const colorObj = getIconSelectorColorClass(iconName, isSel);
                       return (
                         <button key={iconName} type="button" onClick={() => setNewCardSelectedIcon(iconName)}
-                          className={`p-2.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${newCardSelectedIcon === iconName ? 'bg-blue-50 border-blue-500 text-blue-600 ring-2 ring-blue-200' : 'border-slate-100 hover:border-slate-300 text-slate-600 bg-slate-50'}`}>
-                          <Icon size={20} />
+                          className={`p-2.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${colorObj.bg}`}>
+                          <Icon size={20} className={colorObj.fill} />
                         </button>
                       );
                     })}
@@ -1100,10 +1169,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
                   <div className="grid grid-cols-6 gap-2 h-48 overflow-y-auto p-2 border border-slate-100 rounded-2xl">
                     {AVAILABLE_ICONS.map(iconName => {
                       const Icon = (LucideIcons as any)[iconName] || LucideIcons.HelpCircle;
+                      const isSel = editCardSelectedIcon === iconName;
+                      const colorObj = getIconSelectorColorClass(iconName, isSel);
                       return (
                         <button key={iconName} type="button" onClick={() => setEditCardSelectedIcon(iconName)}
-                          className={`p-2.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${editCardSelectedIcon === iconName ? 'bg-blue-50 border-blue-500 text-blue-600 ring-2 ring-blue-200' : 'border-slate-100 hover:border-slate-300 text-slate-600 bg-slate-50'}`}>
-                          <Icon size={20} />
+                          className={`p-2.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${colorObj.bg}`}>
+                          <Icon size={20} className={colorObj.fill} />
                         </button>
                       );
                     })}
