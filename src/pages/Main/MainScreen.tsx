@@ -97,6 +97,17 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   // Refs
   const holdIntervalRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const phraseInputRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll para o final quando novos cards/letras são adicionados
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (phraseInputRef.current) {
+        phraseInputRef.current.scrollLeft = phraseInputRef.current.scrollWidth;
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [selectedCards]);
 
   // Som de clique/feedback tátil
   const playClickSound = () => {
@@ -347,7 +358,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
         </div>
 
         {/* Fila da Frase (Input de Frase) - Sempre visível e flex-grow */}
-        <div className="flex-grow flex items-center bg-white border border-slate-300 rounded-xl h-11 md:h-14 px-2 md:px-3 overflow-x-auto gap-1.5 md:gap-2 scrollbar-none mx-1 md:mx-0">
+        <div ref={phraseInputRef} className="flex-grow flex items-center bg-white border border-slate-300 rounded-xl h-11 md:h-14 px-2 md:px-3 overflow-x-auto gap-1.5 md:gap-2 scrollbar-none mx-1 md:mx-0">
           {selectedCards.length === 0 ? (
             <span className="text-slate-400 text-[10px] md:text-sm font-semibold pl-1 md:pl-2 uppercase tracking-wide select-none">
               Monte sua frase...
