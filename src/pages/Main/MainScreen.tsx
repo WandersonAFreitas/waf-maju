@@ -214,40 +214,45 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   // Leitura sequencial das palavras da frase (incluindo o texto digitado)
   const speakPhrase = async () => {
     const textParts = selectedCards.map((c) => c.label);
-    if (textParts.length === 0) return;
+    if (textParts.length === 0 || speakingIndex !== null) return;
     
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       alert('Síntese de voz não suportada neste navegador.');
       return;
     }
 
-    window.speechSynthesis.cancel();
+    try {
+      window.speechSynthesis.cancel();
 
-    for (let i = 0; i < textParts.length; i++) {
-      setSpeakingIndex(i);
-      
-      await new Promise<void>((resolve) => {
-        const textToSpeak = textParts[i].toLowerCase();
-        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      for (let i = 0; i < textParts.length; i++) {
+        setSpeakingIndex(i);
         
-        utterance.lang = 'pt-BR';
-        utterance.rate = speechRate;
-        utterance.pitch = 1.1;
+        await new Promise<void>((resolve) => {
+          const textToSpeak = textParts[i].toLowerCase();
+          const utterance = new SpeechSynthesisUtterance(textToSpeak);
+          
+          utterance.lang = 'pt-BR';
+          utterance.rate = speechRate;
+          utterance.pitch = 1.1;
 
-        const voices = window.speechSynthesis.getVoices();
-        const ptVoice = voices.find(
-          (v) => v.lang.toLowerCase() === 'pt-br' || v.lang.toLowerCase().replace('_', '-') === 'pt-br'
-        );
-        if (ptVoice) {
-          utterance.voice = ptVoice;
-        }
+          const voices = window.speechSynthesis.getVoices();
+          const ptVoice = voices.find(
+            (v) => v.lang.toLowerCase() === 'pt-br' || v.lang.toLowerCase().replace('_', '-') === 'pt-br'
+          );
+          if (ptVoice) {
+            utterance.voice = ptVoice;
+          }
 
-        utterance.onend = () => resolve();
-        utterance.onerror = () => resolve();
-        window.speechSynthesis.speak(utterance);
-      });
+          utterance.onend = () => resolve();
+          utterance.onerror = () => resolve();
+          window.speechSynthesis.speak(utterance);
+        });
+      }
+    } catch (error) {
+      console.error('Erro na síntese de voz da frase:', error);
+    } finally {
+      setSpeakingIndex(null);
     }
-    setSpeakingIndex(null);
   };
 
   const handleCardClick = (card: any) => {
@@ -435,7 +440,7 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           {/* Botão FALAR (Verde) */}
           <SafeTouch
             onClick={speakPhrase}
-            disabled={selectedCards.length === 0}
+            disabled={selectedCards.length === 0 || speakingIndex !== null}
             className="flex items-center justify-center gap-1 md:gap-2 bg-[#00b05c] hover:bg-[#00964e] active:bg-[#007a3f] text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed px-2.5 md:px-4 rounded-xl h-11 md:h-14 shadow-md font-bold text-[10px] md:text-sm uppercase tracking-wider min-h-[44px] md:min-h-[48px] cursor-pointer"
             style={{ touchAction: 'manipulation' }}
           >
