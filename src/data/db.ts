@@ -1,10 +1,11 @@
 import Dexie, { type Table } from 'dexie';
-import type { Category, ActionCard } from '../types';
+import type { Category, ActionCard, SavedWord } from '../types';
 import { initialCategories, initialActionCards } from './initialData';
 
 export class WfreitasSolutionDatabase extends Dexie {
   categories!: Table<Category, string>;
   actionCards!: Table<ActionCard, number>;
+  savedWords!: Table<SavedWord, number>;
 
   constructor() {
     super('WfreitasSolutionDB');
@@ -19,6 +20,11 @@ export class WfreitasSolutionDatabase extends Dexie {
       // Migrate existing records to profileId: 'default'
       await tx.table('categories').toCollection().modify({ profileId: 'default' });
       await tx.table('actionCards').toCollection().modify({ profileId: 'default' });
+    });
+    this.version(3).stores({
+      categories: 'id, label, color, textColor, order, profileId',
+      actionCards: '++id, label, imageSource, categoryId, order, profileId',
+      savedWords: '++id, word, profileId, order'
     });
   }
 }

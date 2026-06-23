@@ -17,7 +17,8 @@ import {
   Keyboard,
   LayoutGrid,
   FolderOpen,
-  User
+  User,
+  Plus
 } from 'lucide-react';
 
 interface MainScreenProps {
@@ -70,6 +71,10 @@ export const MainScreen: React.FC<MainScreenProps> = ({
       return db.actionCards.where('categoryId').equals(activeCategoryId).sortBy('order');
     }
   }, [activeCategoryId, currentProfileId]) || [];
+
+  const savedWords = useLiveQuery(() => 
+    db.savedWords.where('profileId').equals(currentProfileId).sortBy('order')
+  , [currentProfileId]) || [];
 
   // Local State
   const [viewMode, setViewMode] = useState<'grid' | 'keyboard'>('grid');
@@ -320,6 +325,54 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     clearPhrase();
   };
 
+  const lastCard = selectedCards[selectedCards.length - 1];
+  const canSaveWord = lastCard && lastCard.imageSource === 'Keyboard' && lastCard.label.trim().length > 0;
+
+  const handleSaveCurrentWord = async () => {
+    if (!canSaveWord) return;
+    const wordToSave = lastCard.label.trim();
+    
+    // Evita duplicados para o mesmo perfil
+    const exists = await db.savedWords
+      .where({ profileId: currentProfileId, word: wordToSave })
+      .first();
+      
+    if (exists) {
+      alert('Esta palavra já está salva!');
+      return;
+    }
+
+    const maxOrder = (await db.savedWords.where('profileId').equals(currentProfileId).toArray())
+      .reduce((max, w) => w.order > max ? w.order : max, 0);
+
+    await db.savedWords.add({
+      word: wordToSave,
+      profileId: currentProfileId,
+      order: maxOrder + 1
+    });
+
+    playClickSound();
+    triggerVibrate(8);
+  };
+
+  const handleSelectSavedWord = (word: string) => {
+    playClickSound();
+    triggerVibrate(12);
+    
+    // Adiciona a palavra salva como um card de teclado para permitir edição/fala posterior
+    addCard({
+      label: word,
+      imageSource: 'Keyboard',
+      order: Date.now()
+    });
+  };
+
+  const handleDeleteSavedWord = async (id: number) => {
+    playClickSound();
+    triggerVibrate(8);
+    await db.savedWords.delete(id);
+  };
+
   // Identifica o último card adicionado para destacar na prancha
   const lastAddedCard = selectedCards[selectedCards.length - 1];
 
@@ -562,8 +615,59 @@ export const MainScreen: React.FC<MainScreenProps> = ({
           </div>
         ) : (
           /* MODO TECLADO VIRTUAL DE ALTO CONTRASTE */
-          <div className="flex-grow bg-white flex flex-col w-full h-full justify-between p-5">
+          <div className="flex-grow bg-white flex flex-col w-full h-full justify-between p-3 md:p-5 gap-3">
             
+            {/* Opção para guardar palavras digitadas e selecionar palavras armazenadas */}
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-200 shrink-0 overflow-x-auto w-full scrollbar-none min-h-[56px]">
+              
+              {/* Botão de Salvar Palavra */}
+              <SafeTouch
+                onClick={handleSaveCurrentWord}
+                disabled={!canSaveWord}
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shrink-0 min-h-[44px] md:min-h-[48px] transition-all active:scale-95 select-none uppercase tracking-wider shadow-sm"
+                title="Salvar palavra digitada"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                <span>Salvar</span>
+              </SafeTouch>
+
+              {/* Divisor */}
+              <div className="w-px h-8 bg-slate-300 shrink-0" />
+
+              {/* Lista de Palavras Armazenadas */}
+              {savedWords.length === 0 ? (
+                <span className="text-slate-400 text-xs pl-1 italic select-none">Nenhuma palavra salva...</span>
+              ) : (
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+                  {savedWords.map((item) => (
+                    <div 
+                      key={item.id}
+                      className="inline-flex items-center bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl shrink-0 transition-all select-none min-h-[44px] md:min-h-[48px] overflow-hidden"
+                    >
+                      <button
+                        onClick={() => handleSelectSavedWord(item.word)}
+                        className="text-slate-800 font-extrabold uppercase text-xs tracking-wider cursor-pointer h-full px-3 flex items-center min-h-[44px] md:min-h-[48px]"
+                        title={`Inserir "${item.word}"`}
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        {item.word}
+                      </button>
+                      <div className="w-px h-6 bg-slate-300 shrink-0" />
+                      <button
+                        onClick={() => handleDeleteSavedWord(item.id!)}
+                        className="text-rose-500 hover:text-rose-700 hover:bg-rose-100 cursor-pointer flex items-center justify-center w-10 h-full min-h-[44px] md:min-h-[48px] transition-colors"
+                        title="Excluir"
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <X className="w-4 h-4 md:w-4.5 md:h-4.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Grid de Letras Simétrico em Grade 20x5 */}
             <div 
               className="flex-grow grid gap-3 w-full h-full"

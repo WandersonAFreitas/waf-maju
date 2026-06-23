@@ -18,3 +18,11 @@ export interface ActionCard {
   color?: string;      // Cor de fundo customizada do card
   profileId?: string;  // Identificador do perfil isolado
 }
+
+export interface SavedWord {
+  id?: number;
+  word: string;
+  profileId: string;
+  order: number;
+}
+
