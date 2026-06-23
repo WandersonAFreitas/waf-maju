@@ -1,10 +1,6 @@
 import { create } from 'zustand';
-import type { ActionCard } from '../types';
-
-export interface Profile {
-  id: string;
-  name: string;
-}
+import type { ActionCard, UserProfile } from '../types';
+import { db, seedProfile } from '../data/db';
 
 interface CommunicationState {
   selectedCards: ActionCard[];
@@ -12,7 +8,8 @@ interface CommunicationState {
   isAuthenticated: boolean;
   speechRate: number;
   currentProfileId: string;
-  profiles: Profile[];
+  currentProfile: UserProfile | null;
+  profiles: UserProfile[];
   addCard: (card: ActionCard) => void;
   addTypedChar: (char: string) => void;
   removeLastCard: () => void;
@@ -22,24 +19,24 @@ interface CommunicationState {
   login: (token: string) => void;
   logout: () => void;
   setProfileId: (id: string) => void;
-  createProfile: (name: string) => void;
-  deleteProfile: (id: string) => void;
-  renameProfile: (id: string, name: string) => void;
+  loadProfiles: () => Promise<void>;
+  switchProfile: (profileId: string, password?: string) => Promise<boolean>;
+  createProfile: (name: string, isAdmin: boolean, password?: string) => Promise<void>;
+  deleteProfile: (id: string) => Promise<void>;
+  renameProfile: (id: string, name: string) => Promise<void>;
 }
 
 const initialProfileId = localStorage.getItem('current_profile_id') || 'default';
-const initialProfiles = JSON.parse(
-  localStorage.getItem('profiles') || '[{"id":"default","name":"PADRÃO"}]'
-);
 
-export const useCommunicationStore = create<CommunicationState>((set) => ({
+export const useCommunicationStore = create<CommunicationState>((set, get) => ({
   selectedCards: [],
   activeCategoryId: null,
   isAuthenticated: !!localStorage.getItem('auth_token'),
   currentProfileId: initialProfileId,
-  profiles: initialProfiles,
-  speechRate: parseFloat(localStorage.getItem('speech_rate_' + initialProfileId) || '0.85'),
-  
+  currentProfile: null,
+  profiles: [],
+  speechRate: 0.85,
+
   addCard: (card) => set((state) => ({ 
     selectedCards: [...state.selectedCards, card] 
   })),
@@ -101,47 +98,94 @@ export const useCommunicationStore = create<CommunicationState>((set) => ({
     set({ isAuthenticated: false });
   },
 
-  setProfileId: (id) => set(() => {
-    localStorage.setItem('current_profile_id', id);
-    const rate = parseFloat(localStorage.getItem('speech_rate_' + id) || '0.85');
-    return {
-      currentProfileId: id,
+  setProfileId: (id) => {
+    get().switchProfile(id);
+  },
+
+  loadProfiles: async () => {
+    let list = await db.profiles.toArray();
+    if (list.length === 0) {
+      const defaultProf: UserProfile = {
+        id: 'default',
+        name: 'PADRÃO',
+        isAdmin: true,
+        createdAt: new Date()
+      };
+      await db.profiles.add(defaultProf);
+      list = [defaultProf];
+    }
+    const currentId = get().currentProfileId || 'default';
+    let current = list.find(p => p.id === currentId) || null;
+    if (!current && list.length > 0) {
+      current = list[0];
+    }
+    const finalProfileId = current?.id || 'default';
+    localStorage.setItem('current_profile_id', finalProfileId);
+    const rate = parseFloat(localStorage.getItem('speech_rate_' + finalProfileId) || '0.85');
+
+    set({ 
+      profiles: list, 
+      currentProfile: current, 
+      currentProfileId: finalProfileId,
+      speechRate: rate
+    });
+  },
+
+  switchProfile: async (profileId: string, password?: string) => {
+    const targetProfile = await db.profiles.get(profileId);
+    if (!targetProfile) return false;
+
+    // Se o perfil tiver senha cadastrada, valida a senha
+    if (targetProfile.password && targetProfile.password !== password) {
+      return false;
+    }
+
+    localStorage.setItem('current_profile_id', profileId);
+    const rate = parseFloat(localStorage.getItem('speech_rate_' + profileId) || '0.85');
+
+    set({
+      currentProfileId: profileId,
+      currentProfile: targetProfile,
       speechRate: rate,
       selectedCards: [],
       activeCategoryId: null
-    };
-  }),
+    });
+    return true;
+  },
 
-  createProfile: (name) => set((state) => {
+  createProfile: async (name: string, isAdmin: boolean, password?: string) => {
     const newId = 'profile_' + Date.now();
-    const newProfile = { id: newId, name: name.trim().toUpperCase() };
-    const newList = [...state.profiles, newProfile];
-    localStorage.setItem('profiles', JSON.stringify(newList));
-    return { profiles: newList };
-  }),
+    const newProfile: UserProfile = {
+      id: newId,
+      name: name.trim().toUpperCase(),
+      isAdmin,
+      password: password || undefined,
+      createdAt: new Date()
+    };
+    await db.profiles.add(newProfile);
+    await seedProfile(newId);
+    await get().loadProfiles();
+  },
 
-  deleteProfile: (id) => set((state) => {
-    if (id === 'default' || state.profiles.length <= 1) return {};
-    const newList = state.profiles.filter(p => p.id !== id);
-    localStorage.setItem('profiles', JSON.stringify(newList));
-    
-    if (state.currentProfileId === id) {
-      localStorage.setItem('current_profile_id', 'default');
-      const rate = parseFloat(localStorage.getItem('speech_rate_default') || '0.85');
-      return {
-        profiles: newList,
-        currentProfileId: 'default',
-        speechRate: rate,
-        selectedCards: [],
-        activeCategoryId: null
-      };
+  deleteProfile: async (id: string) => {
+    if (id === 'default') return;
+    await db.profiles.delete(id);
+
+    await db.transaction('rw', db.categories, db.actionCards, db.savedWords, async () => {
+      await db.categories.where('profileId').equals(id).delete();
+      await db.actionCards.where('profileId').equals(id).delete();
+      await db.savedWords.where('profileId').equals(id).delete();
+    });
+
+    if (get().currentProfileId === id) {
+      await get().switchProfile('default');
     }
-    return { profiles: newList };
-  }),
+    await get().loadProfiles();
+  },
 
-  renameProfile: (id, name) => set((state) => {
-    const newList = state.profiles.map(p => p.id === id ? { ...p, name: name.trim().toUpperCase() } : p);
-    localStorage.setItem('profiles', JSON.stringify(newList));
-    return { profiles: newList };
-  })
+  renameProfile: async (id: string, name: string) => {
+    await db.profiles.update(id, { name: name.trim().toUpperCase() });
+    await get().loadProfiles();
+  }
 }));
+

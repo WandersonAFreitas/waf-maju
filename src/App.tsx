@@ -9,7 +9,11 @@ import { RefreshCw, X } from 'lucide-react';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<'MAIN' | 'LOGIN' | 'SETTINGS'>('MAIN');
-  const isAuthenticated = useCommunicationStore((state) => state.isAuthenticated);
+  const loadProfiles = useCommunicationStore((state) => state.loadProfiles);
+
+  useEffect(() => {
+    loadProfiles();
+  }, [loadProfiles]);
 
   // Registra o Service Worker e gerencia atualizações
   const {
@@ -65,7 +69,7 @@ export default function App() {
   }, []);
 
   const handleNavigateToSettings = () => {
-    if (isAuthenticated) {
+    if (useCommunicationStore.getState().isAuthenticated) {
       setCurrentScreen('SETTINGS');
     } else {
       setCurrentScreen('LOGIN');
@@ -102,7 +106,6 @@ export default function App() {
       {currentScreen === 'MAIN' && (
         <MainScreen
           onNavigateToSettings={handleNavigateToSettings}
-          onNavigateToLogin={() => setCurrentScreen('LOGIN')}
         />
       )}
 

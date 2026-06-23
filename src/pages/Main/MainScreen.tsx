@@ -13,7 +13,6 @@ import {
   Volume2,
   ChevronLeft,
   X,
-  Lock,
   Keyboard,
   LayoutGrid,
   FolderOpen,
@@ -23,7 +22,6 @@ import {
 
 interface MainScreenProps {
   onNavigateToSettings: () => void;
-  onNavigateToLogin: () => void;
 }
 
 const KEYBOARD_ROWS = [
@@ -34,8 +32,7 @@ const KEYBOARD_ROWS = [
 ];
 
 export const MainScreen: React.FC<MainScreenProps> = ({
-  onNavigateToSettings,
-  onNavigateToLogin
+  onNavigateToSettings
 }) => {
   // Zustand State
   const {
@@ -46,14 +43,14 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     removeLastCard,
     clearPhrase,
     setActiveCategoryId,
-    isAuthenticated,
+    login,
     speechRate,
     currentProfileId,
+    currentProfile,
     profiles,
-    setProfileId,
+    switchProfile,
     createProfile,
-    deleteProfile,
-    renameProfile
+    deleteProfile
   } = useCommunicationStore();
 
   // Database Queries
@@ -78,19 +75,17 @@ export const MainScreen: React.FC<MainScreenProps> = ({
 
   // Local State
   const [viewMode, setViewMode] = useState<'grid' | 'keyboard'>('grid');
-  const [showParentalModal, setShowParentalModal] = useState(false);
-  const [parentalMode, setParentalMode] = useState<'hold' | 'math'>('hold');
-  const [holdProgress, setHoldProgress] = useState(0);
-  const [mathProblem, setMathProblem] = useState({ q: '', a: 0 });
-  const [mathInput, setMathInput] = useState('');
-  const [mathError, setMathError] = useState(false);
+  const [showAdminPasswordModal, setShowAdminPasswordModal] = useState(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [adminPasswordError, setAdminPasswordError] = useState<string | null>(null);
+  const [settingsAlertMessage, setSettingsAlertMessage] = useState<string | null>(null);
+  const [newProfilePassword, setNewProfilePassword] = useState('');
+  const [newProfileIsAdmin, setNewProfileIsAdmin] = useState(false);
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
 
   // Profile Modal State
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
-  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
-  const [editProfileName, setEditProfileName] = useState('');
 
   // Garante que o perfil atual possui seus dados iniciais (seeding)
   useEffect(() => {
@@ -100,7 +95,6 @@ export const MainScreen: React.FC<MainScreenProps> = ({
   }, [currentProfileId]);
 
   // Refs
-  const holdIntervalRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const phraseInputRef = useRef<HTMLDivElement>(null);
 
@@ -148,70 +142,26 @@ export const MainScreen: React.FC<MainScreenProps> = ({
     }
   };
 
-  // Gerador de equações matemáticas
-  const generateMathProblem = () => {
-    const num1 = Math.floor(Math.random() * 8) + 2; // 2 a 9
-    const num2 = Math.floor(Math.random() * 8) + 2; // 2 a 9
-    setMathProblem({
-      q: `${num1} x ${num2} = ?`,
-      a: num1 * num2
-    });
-    setMathInput('');
-    setMathError(false);
-  };
+
 
   const handleSettingsClick = () => {
-    if (isAuthenticated) {
+    playClickSound();
+    triggerVibrate(8);
+
+    if (!currentProfile) return;
+
+    if (!currentProfile.isAdmin) {
+      setSettingsAlertMessage('Apenas perfis administradores podem alterar os cards e grupos.');
+      return;
+    }
+
+    if (currentProfile.password) {
+      setShowAdminPasswordModal(true);
+      setAdminPasswordInput('');
+      setAdminPasswordError(null);
+    } else {
+      login('admin_verified_token');
       onNavigateToSettings();
-    } else {
-      generateMathProblem();
-      setShowParentalModal(true);
-      setHoldProgress(0);
-    }
-  };
-
-  const startHoldTimer = () => {
-    setHoldProgress(0);
-    const startTime = Date.now();
-    const duration = 3000;
-
-    holdIntervalRef.current = window.setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min((elapsed / duration) * 100, 100);
-      setHoldProgress(progress);
-
-      if (progress >= 100) {
-        clearInterval(holdIntervalRef.current!);
-        holdIntervalRef.current = null;
-        setShowParentalModal(false);
-        onNavigateToLogin();
-      }
-    }, 50);
-  };
-
-  const stopHoldTimer = () => {
-    if (holdIntervalRef.current) {
-      clearInterval(holdIntervalRef.current);
-      holdIntervalRef.current = null;
-    }
-    setHoldProgress(0);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
-    };
-  }, []);
-
-  const handleMathSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (parseInt(mathInput, 10) === mathProblem.a) {
-      setShowParentalModal(false);
-      onNavigateToLogin();
-    } else {
-      setMathError(true);
-      setMathInput('');
-      setTimeout(generateMathProblem, 1000);
     }
   };
 
@@ -819,132 +769,94 @@ export const MainScreen: React.FC<MainScreenProps> = ({
         </div>
       </footer>
 
-      {/* 4. MODAL DE TRAVA PARENTAL */}
-      {showParentalModal && (
+      {/* 4. MODAL DE AVISO DE ACESSO RESTRITO */}
+      {settingsAlertMessage && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 max-w-sm w-full p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-150 text-center">
+            <div className="inline-flex items-center justify-center p-3 bg-rose-50 text-rose-600 rounded-full mb-3 border border-rose-100">
+              <LucideIcons.ShieldAlert size={28} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Acesso Restrito</h3>
+            <p className="text-sm text-slate-500 mt-2">
+              {settingsAlertMessage}
+            </p>
+            <button
+              onClick={() => setSettingsAlertMessage(null)}
+              className="mt-5 w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all cursor-pointer text-sm"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 4.1. MODAL DE SENHA DO ADMINISTRADOR */}
+      {showAdminPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-150">
             <button
-              onClick={() => setShowParentalModal(false)}
+              onClick={() => {
+                setShowAdminPasswordModal(false);
+                setAdminPasswordInput('');
+                setAdminPasswordError(null);
+              }}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 rounded-full p-1 hover:bg-slate-100"
             >
               <X size={20} />
             </button>
 
             <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center p-3 bg-amber-50 text-amber-700 rounded-full mb-3 border border-amber-100">
-                <Lock size={24} />
+              <div className="inline-flex items-center justify-center p-3 bg-blue-50 text-blue-600 rounded-full mb-3 border border-blue-100">
+                <LucideIcons.Lock size={24} />
               </div>
-              <h3 className="text-lg font-bold text-slate-800">Controle dos Pais</h3>
+              <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Senha do Administrador</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Resolva o desafio abaixo para acessar as configurações.
+                Digite a senha do perfil "{currentProfile?.name}" para acessar as configurações.
               </p>
             </div>
 
-            {/* Abas */}
-            <div className="flex border-b border-slate-100 mb-6">
-              <button
-                onClick={() => setParentalMode('hold')}
-                className={`flex-1 pb-3 text-sm font-semibold border-b-2 text-center transition-colors ${
-                  parentalMode === 'hold'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                Pressionar e Segurar
-              </button>
-              <button
-                onClick={() => {
-                  setParentalMode('math');
-                  generateMathProblem();
-                }}
-                className={`flex-1 pb-3 text-sm font-semibold border-b-2 text-center transition-colors ${
-                  parentalMode === 'math'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                Desafio Matemático
-              </button>
-            </div>
-
-            {/* Segurar */}
-            {parentalMode === 'hold' && (
-              <div className="flex flex-col items-center justify-center py-4">
-                <button
-                  onMouseDown={startHoldTimer}
-                  onMouseUp={stopHoldTimer}
-                  onMouseLeave={stopHoldTimer}
-                  onTouchStart={startHoldTimer}
-                  onTouchEnd={stopHoldTimer}
-                  className="relative w-28 h-28 rounded-full bg-blue-500 hover:bg-blue-600 active:bg-blue-700 flex items-center justify-center text-white font-bold text-sm shadow-md transition-transform active:scale-95 cursor-pointer select-none"
-                  style={{ touchAction: 'none' }}
-                >
-                  <svg className="absolute inset-0 w-28 h-28 transform -rotate-90">
-                    <circle
-                      cx="56"
-                      cy="56"
-                      r="50"
-                      stroke="rgba(255, 255, 255, 0.2)"
-                      strokeWidth="6"
-                      fill="transparent"
-                    />
-                    <circle
-                      cx="56"
-                      cy="56"
-                      r="50"
-                      stroke="white"
-                      strokeWidth="6"
-                      fill="transparent"
-                      strokeDasharray={2 * Math.PI * 50}
-                      strokeDashoffset={2 * Math.PI * 50 * (1 - holdProgress / 100)}
-                    />
-                  </svg>
-                  SEGURE
-                </button>
-                <p className="mt-4 text-xs text-slate-500 text-center">
-                  Mantenha pressionado por 3 segundos para desbloquear.
-                </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setAdminPasswordError(null);
+                if (currentProfile?.password === adminPasswordInput) {
+                  login('admin_verified_token');
+                  setShowAdminPasswordModal(false);
+                  setAdminPasswordInput('');
+                  onNavigateToSettings();
+                } else {
+                  setAdminPasswordError('Senha incorreta! Tente novamente.');
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <input
+                  type="password"
+                  value={adminPasswordInput}
+                  onChange={(e) => setAdminPasswordInput(e.target.value)}
+                  placeholder="Digite a senha"
+                  className={`block w-full text-center py-3 bg-slate-50 border rounded-2xl text-lg font-semibold placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${
+                    adminPasswordError
+                      ? 'border-rose-400 focus:border-rose-500 text-rose-600'
+                      : 'border-slate-200 focus:border-blue-500 text-slate-800'
+                  }`}
+                  autoFocus
+                />
+                {adminPasswordError && (
+                  <p className="text-center text-xs text-rose-500 mt-1.5 font-medium">
+                    {adminPasswordError}
+                  </p>
+                )}
               </div>
-            )}
 
-            {/* Matemática */}
-            {parentalMode === 'math' && (
-              <form onSubmit={handleMathSubmit} className="space-y-4">
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl py-6 text-center">
-                  <span className="text-3xl font-bold text-slate-700 tracking-wider">
-                    {mathProblem.q}
-                  </span>
-                </div>
-
-                <div>
-                  <input
-                    type="number"
-                    value={mathInput}
-                    onChange={(e) => setMathInput(e.target.value)}
-                    placeholder="Sua resposta"
-                    className={`block w-full text-center py-3 bg-slate-50 border rounded-2xl text-lg font-semibold placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all ${
-                      mathError
-                        ? 'border-rose-400 focus:border-rose-500 text-rose-600'
-                        : 'border-slate-200 focus:border-blue-500 text-slate-800'
-                    }`}
-                    autoFocus
-                  />
-                  {mathError && (
-                    <p className="text-center text-xs text-rose-500 mt-1.5 font-medium">
-                      Resposta incorreta! Tente novamente.
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-all active:scale-[0.98] cursor-pointer text-center text-sm"
-                >
-                  Confirmar Resposta
-                </button>
-              </form>
-            )}
-
+              <button
+                type="submit"
+                className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-all active:scale-[0.98] cursor-pointer text-center text-sm"
+              >
+                Acessar Painel
+              </button>
+            </form>
           </div>
         </div>
       )}
@@ -964,92 +876,84 @@ export const MainScreen: React.FC<MainScreenProps> = ({
               <div className="inline-flex items-center justify-center p-3 bg-orange-50 text-[#944a00] rounded-full mb-3 border border-orange-100">
                 <User size={24} />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Gerenciamento de Perfis</h3>
+              <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Trocar ou Criar Perfil</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Alterne entre perfis locais ou gerencie os existentes.
+                Alterne entre perfis locais ou cadastre novos usuários.
               </p>
             </div>
 
-            {/* List of profiles */}
-            <div className="space-y-2.5 max-h-48 overflow-y-auto mb-6 pr-1 scrollbar-thin scrollbar-thumb-slate-200">
+            {/* List of profiles as cards */}
+            <div className="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto mb-6 pr-1 scrollbar-thin scrollbar-thumb-slate-200">
               {profiles.map((profile) => {
                 const isActive = profile.id === currentProfileId;
-                const isEditing = editingProfileId === profile.id;
+                const hasPassword = !!profile.password;
+                const isAdminProfile = !!profile.isAdmin;
 
                 return (
                   <div
                     key={profile.id}
-                    className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
+                    className={`group relative flex flex-col justify-between p-3.5 rounded-2xl border transition-all cursor-pointer hover:shadow-md ${
                       isActive
-                        ? 'bg-orange-50/50 border-[#944a00] text-orange-950 font-bold'
-                        : 'bg-slate-50 border-slate-200 text-slate-700'
+                        ? 'bg-orange-50 border-[#944a00] text-orange-950 font-bold'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-semibold'
                     }`}
-                  >
-                    {isEditing ? (
-                      <div className="flex gap-2 flex-grow mr-2">
-                        <input
-                          type="text"
-                          value={editProfileName}
-                          onChange={(e) => setEditProfileName(e.target.value)}
-                          className="flex-grow px-3 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold uppercase focus:outline-none focus:ring-1 focus:ring-[#944a00]"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => {
-                            if (editProfileName.trim()) {
-                              renameProfile(profile.id, editProfileName);
-                              setEditingProfileId(null);
-                            }
-                          }}
-                          className="bg-emerald-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-emerald-700 cursor-pointer"
-                        >
-                          Salvar
-                        </button>
-                        <button
-                          onClick={() => setEditingProfileId(null)}
-                          className="bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-slate-300 cursor-pointer"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setProfileId(profile.id);
+                    onClick={async () => {
+                      if (isActive) return;
+                      if (hasPassword) {
+                        const enteredPassword = prompt(`Digite a senha para acessar o perfil "${profile.name}":`);
+                        if (enteredPassword === null) return;
+                        const success = await switchProfile(profile.id!, enteredPassword);
+                        if (!success) {
+                          alert('Senha incorreta!');
+                        } else {
                           setShowProfileModal(false);
-                        }}
-                        className="flex-grow text-left font-extrabold uppercase text-xs tracking-wider cursor-pointer"
-                      >
-                        {profile.name} {isActive && '(ATIVO)'}
-                      </button>
-                    )}
-
-                    {!isEditing && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => {
-                            setEditingProfileId(profile.id);
-                            setEditProfileName(profile.name);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 cursor-pointer"
-                          title="Renomear perfil"
-                        >
-                          <LucideIcons.Edit size={14} />
-                        </button>
-                        {profile.id !== 'default' && (
-                          <button
-                            onClick={() => {
-                              if (confirm(`Deseja realmente excluir o perfil "${profile.name}" e todas as suas configurações?`)) {
-                                deleteProfile(profile.id);
-                              }
-                            }}
-                            className="p-1.5 text-rose-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
-                            title="Excluir perfil"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
+                        }
+                      } else {
+                        await switchProfile(profile.id!);
+                        setShowProfileModal(false);
+                      }
+                    }}
+                  >
+                    <div className="flex flex-col gap-1 w-full">
+                      <div className="flex items-center gap-1.5 justify-between">
+                        <div className="flex items-center gap-1 overflow-hidden">
+                          <User className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#944a00]' : 'text-slate-400'}`} />
+                          <span className="text-xs uppercase tracking-wide truncate max-w-[80px]">
+                            {profile.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {isAdminProfile && (
+                            <span title="Administrador">
+                              <LucideIcons.Shield className="w-3.5 h-3.5 text-blue-600 fill-blue-100" />
+                            </span>
+                          )}
+                          {hasPassword && (
+                            <span title="Protegido por senha">
+                              <LucideIcons.Lock className="w-3.5 h-3.5 text-slate-400" />
+                            </span>
+                          )}
+                        </div>
                       </div>
+                      <span className="text-[8px] text-slate-400 font-medium">
+                        {isAdminProfile ? 'Administrador' : 'Comum'}
+                      </span>
+                    </div>
+
+                    {/* Botão de Excluir Perfil */}
+                    {profile.id !== 'default' && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm(`Deseja realmente excluir o perfil "${profile.name}" e todas as suas configurações?`)) {
+                            await deleteProfile(profile.id!);
+                          }
+                        }}
+                        className="absolute bottom-2 right-2 p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Excluir perfil"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     )}
                   </div>
                 );
@@ -1058,33 +962,62 @@ export const MainScreen: React.FC<MainScreenProps> = ({
 
             {/* Form to create new profile */}
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 if (newProfileName.trim()) {
-                  createProfile(newProfileName);
+                  await createProfile(newProfileName, newProfileIsAdmin, newProfilePassword);
                   setNewProfileName('');
+                  setNewProfileIsAdmin(false);
+                  setNewProfilePassword('');
                 }
               }}
-              className="border-t border-slate-100 pt-4"
+              className="border-t border-slate-100 pt-4 space-y-3"
             >
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">
                 Criar Novo Perfil
               </label>
-              <div className="flex gap-2">
+              
+              <div className="flex flex-col gap-2.5">
                 <input
                   type="text"
                   value={newProfileName}
                   onChange={(e) => setNewProfileName(e.target.value)}
                   placeholder="Nome do perfil"
-                  className="flex-grow px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-xs font-bold uppercase focus:outline-none focus:ring-2 focus:ring-[#944a00]/20 focus:border-[#944a00]"
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-xs font-bold uppercase focus:outline-none focus:ring-2 focus:ring-[#944a00]/20 focus:border-[#944a00]"
                 />
-                <button
-                  type="submit"
-                  disabled={!newProfileName.trim()}
-                  className="px-4 py-2 bg-[#944a00] hover:bg-[#7a3c00] disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
-                >
-                  Criar
-                </button>
+                
+                <input
+                  type="password"
+                  value={newProfilePassword}
+                  onChange={(e) => setNewProfilePassword(e.target.value)}
+                  placeholder="Senha (deixe em branco para sem senha)"
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#944a00]/20 focus:border-[#944a00]"
+                />
+                <p className="text-[9px] text-slate-400 italic -mt-1.5 px-1">
+                  Opcional. Deixe em branco para acessar sem senha.
+                </p>
+
+                <div className="flex items-center justify-between px-1 py-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={newProfileIsAdmin}
+                      onChange={(e) => setNewProfileIsAdmin(e.target.checked)}
+                      className="rounded text-[#944a00] focus:ring-[#944a00] w-4 h-4"
+                    />
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                      Administrador
+                    </span>
+                  </label>
+                  
+                  <button
+                    type="submit"
+                    disabled={!newProfileName.trim()}
+                    className="px-4 py-2 bg-[#944a00] hover:bg-[#7a3c00] disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+                  >
+                    Criar
+                  </button>
+                </div>
               </div>
             </form>
           </div>

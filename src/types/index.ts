@@ -26,3 +26,11 @@ export interface SavedWord {
   order: number;
 }
 
+export interface UserProfile {
+  id?: string;
+  name: string;
+  isAdmin: boolean;
+  password?: string; // Opcional
+  createdAt: Date;
+}
+
