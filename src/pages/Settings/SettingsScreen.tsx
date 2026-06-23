@@ -12,13 +12,20 @@ interface SettingsScreenProps {
 
 // Lista de ícones disponíveis para seleção, idêntica ao mapeamento no Card
 const AVAILABLE_ICONS = [
-  'Hand', 'ThumbsDown', 'Check', 'X', 'HelpCircle', 'Heart',
-  'User', 'UserCheck', 'GraduationCap', 'Users',
-  'Gamepad2', 'Utensils', 'CupSoda', 'Moon', 'MapPin', 'Eye',
-  'Droplet', 'Apple', 'Cookie', 'GlassWater',
-  'Smile', 'Frown', 'Angry', 'BatteryLow', 'Activity',
-  'ToyBrick', 'Tablet', 'Tv', 'Circle', 'BookOpen',
-  'Home', 'School', 'Trees', 'Bath'
+  // Essenciais / Feedback
+  'ThumbsUp', 'ThumbsDown', 'Check', 'X', 'HelpCircle', 'Heart', 'AlertCircle', 'MessageSquare',
+  // Pessoas & Relações
+  'User', 'Users', 'UserPlus', 'GraduationCap', 'Baby',
+  // Sentimentos & Estados
+  'Smile', 'Frown', 'Angry', 'Laugh', 'BatteryCharging', 'BatteryLow', 'Activity', 'Thermometer',
+  // Necessidades / Alimentação / Sono
+  'Utensils', 'GlassWater', 'CupSoda', 'Bed', 'Moon', 'Sun', 'Apple', 'Cookie', 'Pizza', 'Cake', 'IceCream',
+  // Higiene / Saúde
+  'Bath', 'ShowerHead', 'Droplet', 'Trash2', 'ShieldAlert',
+  // Ações / Brincadeiras / Mídia
+  'Gamepad2', 'ToyBrick', 'Puzzle', 'Music', 'Tv', 'BookOpen', 'Pencil', 'Brush', 'Speaker', 'Volume2', 'Megaphone', 'Hand', 'Eye', 'Ear',
+  // Lugares & Transporte
+  'Home', 'School', 'Trees', 'Store', 'MapPin', 'Car', 'Bike', 'Footprints', 'Clock'
 ];
 
 // Presets de cores para categorias/grupos
