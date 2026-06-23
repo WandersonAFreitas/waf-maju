@@ -66,6 +66,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
   // UI State
   const [activeCategoryId, setActiveCategoryId] = useState<string>('raiz');
   const [draggedCardId, setDraggedCardId] = useState<number | null>(null);
+  const [justDraggedId, setJustDraggedId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // ─── MODAL: Criar Novo Card ────────────────────────────────────────────────
@@ -380,7 +381,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
   };
 
   const handleDragEnd = () => {
+    const id = draggedCardId;
     setDraggedCardId(null);
+    setJustDraggedId(id);
+    setTimeout(() => {
+      setJustDraggedId(null);
+    }, 100);
   };
 
   const handleDrop = async (e: React.DragEvent, targetId: number) => {
@@ -697,10 +703,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
                             onDragOver={(e) => e.preventDefault()}
                             onDragEnd={handleDragEnd}
                             onDrop={(e) => handleDrop(e, card.id!)}
-                            className={`group relative aspect-square border-2 border-slate-200 rounded-3xl flex flex-col items-center justify-between p-3.5 shadow-sm transition-all hover:shadow-md hover:border-blue-400 select-none ${
+                            onClick={() => {
+                              if (justDraggedId === card.id) return;
+                              setEditingCard(card);
+                            }}
+                            className={`group relative aspect-square border-2 border-slate-200 rounded-3xl flex flex-col items-center justify-between p-3.5 shadow-sm transition-all hover:shadow-md hover:border-blue-400 hover:scale-[1.02] cursor-pointer select-none ${
                               card.color || 'bg-white'
                             } ${
-                              draggedCardId === card.id ? 'opacity-30 scale-95 border-dashed border-blue-500' : 'cursor-grab active:cursor-grabbing'
+                              draggedCardId === card.id ? 'opacity-30 scale-95 border-dashed border-blue-500' : ''
                             }`}
                           >
                             {/* Barra de Ações Superior (Aparece no hover no desktop, visível em opacidade 80% no mobile) */}
