@@ -64,7 +64,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
   , [currentProfileId]) || [];
 
   // UI State
-  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
+  const [activeCategoryId, setActiveCategoryId] = useState<string>('raiz');
+  const [draggedCardId, setDraggedCardId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // ─── MODAL: Criar Novo Card ────────────────────────────────────────────────
@@ -78,7 +79,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
 
   const openCreateCardModal = () => {
     setNewCardLabel('');
-    setNewCardCategoryId('');
+    setNewCardCategoryId(activeCategoryId === 'raiz' ? '' : activeCategoryId);
     setNewCardImageType('icon');
     setNewCardSelectedIcon('HelpCircle');
     setNewCardUploadedImage(null);
@@ -371,6 +372,47 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
     }
   };
 
+  // ─── DRAG AND DROP ─────────────────────────────────────────────────────────
+  const handleDragStart = (e: React.DragEvent, id: number) => {
+    setDraggedCardId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id.toString());
+  };
+
+  const handleDragEnd = () => {
+    setDraggedCardId(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetId: number) => {
+    e.preventDefault();
+    const draggedIdStr = e.dataTransfer.getData('text/plain');
+    const draggedId = parseInt(draggedIdStr, 10);
+    if (isNaN(draggedId) || draggedId === targetId) return;
+
+    const activeCatId = activeCategoryId === 'raiz' ? undefined : activeCategoryId;
+    const targetCards = cards
+      .filter(c => c.categoryId === activeCatId)
+      .sort((a, b) => a.order - b.order);
+
+    const draggedIndex = targetCards.findIndex(c => c.id === draggedId);
+    const targetIndex = targetCards.findIndex(c => c.id === targetId);
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const reordered = [...targetCards];
+    const [removed] = reordered.splice(draggedIndex, 1);
+    reordered.splice(targetIndex, 0, removed);
+
+    await db.transaction('rw', db.actionCards, async () => {
+      for (let i = 0; i < reordered.length; i++) {
+        const cardToUpdate = reordered[i];
+        const newOrder = i + 1;
+        if (cardToUpdate.order !== newOrder) {
+          await db.actionCards.update(cardToUpdate.id!, { order: newOrder });
+        }
+      }
+    });
+  };
+
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col select-none font-sans pb-10">
@@ -455,186 +497,286 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBackToMain }) 
           </div>
         </section>
 
-        {/* Ações Rápidas */}
-        <section className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
-            <LucideIcons.Zap className="text-blue-600" size={20} />
-            Ações Rápidas
-          </h2>
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Botão Criar Novo Card */}
-            <button
-              type="button"
-              onClick={openCreateCardModal}
-              className="flex-1 flex items-center justify-center gap-3 py-4 px-6 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-2xl shadow-sm transition-all active:scale-[0.98] cursor-pointer text-sm uppercase tracking-wider"
-            >
-              <LucideIcons.Plus size={20} />
-              Criar Novo Card
-            </button>
-            {/* Botão Criar Novo Grupo */}
-            <button
-              type="button"
-              onClick={openCreateGroupModal}
-              className="flex-1 flex items-center justify-center gap-3 py-4 px-6 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold rounded-2xl shadow-sm transition-all active:scale-[0.98] cursor-pointer text-sm uppercase tracking-wider"
-            >
-              <LucideIcons.FolderPlus size={20} />
-              Criar Novo Grupo
-            </button>
-          </div>
-        </section>
-
-        {/* Gerenciador de Cards & Categorias */}
-        <section className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
-            <LucideIcons.LayoutGrid className="text-blue-600" size={20} />
-            Gerenciar Botões &amp; Categorias
-          </h2>
-
-          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-300">
-
-            {/* Botões da Raiz */}
-            <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 shadow-sm">
+        {/* Layout Principal de Duas Colunas */}
+        <div className="flex flex-col lg:flex-row gap-6 w-full items-start">
+          
+          {/* 📊 COLUNA ESQUERDA: "Estrutura e Grupos" (40% da Largura) */}
+          <div className="w-full lg:w-[40%] flex flex-col gap-5 shrink-0">
+            
+            {/* Topo: Botões de Ação Rápida Empilhados */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col gap-3">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 select-none">Ações Rápidas</h3>
               <button
-                onClick={() => setExpandedCategoryId(expandedCategoryId === 'raiz' ? null : 'raiz')}
-                className="w-full px-5 py-3.5 flex items-center justify-between text-left font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors border-b border-slate-100"
+                type="button"
+                onClick={openCreateGroupModal}
+                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold rounded-2xl shadow-sm transition-all active:scale-[0.98] cursor-pointer text-sm uppercase tracking-wider"
               >
-                <span className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full bg-slate-400" />
-                  BOTÕES DA RAIZ ({cards.filter(c => !c.categoryId).length})
-                </span>
-                {expandedCategoryId === 'raiz'
-                  ? <LucideIcons.ChevronDown size={18} />
-                  : <LucideIcons.ChevronRight size={18} />
-                }
+                <LucideIcons.FolderPlus size={18} />
+                Criar Novo Grupo
               </button>
-              {expandedCategoryId === 'raiz' && (
-                <div className="p-4 bg-slate-50/50 space-y-2">
-                  {(() => {
-                    const rootCards = cards.filter(c => !c.categoryId).sort((a, b) => a.order - b.order);
-                    if (rootCards.length === 0) return <p className="text-xs text-slate-400 italic">Nenhum botão na raiz.</p>;
-                    return rootCards.map((card, idx) => {
-                      const isFirst = idx === 0;
-                      const isLast = idx === rootCards.length - 1;
-                      return (
-                        <div key={card.id} className="flex items-center justify-between bg-white border border-slate-100 rounded-xl p-3 shadow-sm hover:border-slate-200 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center overflow-hidden border border-slate-200">
-                              {card.imageSource.startsWith('data:image')
-                                ? <img src={card.imageSource} alt={card.label} className="w-full h-full object-cover" />
-                                : React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, { size: 20 })
-                              }
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-slate-800">{card.label}</p>
-                              <p className="text-[10px] text-slate-400">Ordem: {card.order}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <button onClick={() => handleMoveCard(card.id!, 'up')} disabled={isFirst} className="p-2 text-slate-400 hover:text-blue-600 disabled:opacity-30 rounded-xl transition-colors cursor-pointer" type="button" title="Mover para cima">
-                              <LucideIcons.ArrowUp size={16} />
-                            </button>
-                            <button onClick={() => handleMoveCard(card.id!, 'down')} disabled={isLast} className="p-2 text-slate-400 hover:text-blue-600 disabled:opacity-30 rounded-xl transition-colors cursor-pointer" type="button" title="Mover para baixo">
-                              <LucideIcons.ArrowDown size={16} />
-                            </button>
-                            <span className="w-px h-5 bg-slate-200 mx-1" />
-                            <button onClick={() => setEditingCard(card)} className="p-2 text-[#944a00] hover:bg-orange-50 rounded-xl transition-colors cursor-pointer" type="button" title="Editar Card">
-                              <LucideIcons.Edit size={16} />
-                            </button>
-                            <button onClick={() => handleDeleteCard(card.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer" type="button" title="Excluir Card">
-                              <LucideIcons.Trash2 size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={openCreateCardModal}
+                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-2xl shadow-sm transition-all active:scale-[0.98] cursor-pointer text-sm uppercase tracking-wider"
+              >
+                <LucideIcons.Plus size={18} />
+                Criar Novo Card
+              </button>
             </div>
 
-            {/* Categorias */}
-            {(() => {
-              const sortedCats = [...categories].sort((a, b) => a.order - b.order);
-              return sortedCats.map((cat, catIdx) => {
-                const catCards = cards.filter(c => c.categoryId === cat.id).sort((a, b) => a.order - b.order);
-                const isExpanded = expandedCategoryId === cat.id;
-                const isCatFirst = catIdx === 0;
-                const isCatLast = catIdx === sortedCats.length - 1;
-                return (
-                  <div key={cat.id} className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 shadow-sm">
-                    <div className="w-full px-5 py-3.5 flex items-center justify-between text-left font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors border-b border-slate-100">
-                      <button type="button" onClick={() => setExpandedCategoryId(isExpanded ? null : cat.id)} className="flex-grow flex items-center gap-2 text-left">
-                        <span className={`w-3.5 h-3.5 rounded-full border border-slate-300 ${cat.color.split(' ')[0]}`} />
-                        <span className="text-sm font-bold uppercase tracking-wider">{cat.label}</span>
-                        <span className="text-xs text-slate-400 font-semibold">({catCards.length})</span>
-                      </button>
-                      <div className="flex items-center gap-1">
-                        <button type="button" onClick={(e) => { e.stopPropagation(); handleMoveCategory(cat.id, 'up'); }} disabled={isCatFirst} className="p-1.5 text-slate-400 hover:text-blue-600 disabled:opacity-30 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Mover categoria para cima">
-                          <LucideIcons.ArrowUp size={16} />
-                        </button>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); handleMoveCategory(cat.id, 'down'); }} disabled={isCatLast} className="p-1.5 text-slate-400 hover:text-blue-600 disabled:opacity-30 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Mover categoria para baixo">
-                          <LucideIcons.ArrowDown size={16} />
-                        </button>
-                        <span className="w-px h-5 bg-slate-200 mx-1" />
-                        <button type="button" onClick={(e) => { e.stopPropagation(); setEditingCategory(cat); }} className="p-1.5 text-slate-400 hover:text-[#944a00] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer" title="Editar Categoria">
-                          <LucideIcons.Edit size={16} />
-                        </button>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }} className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Excluir Categoria">
-                          <LucideIcons.Trash2 size={16} />
-                        </button>
-                        <button type="button" onClick={() => setExpandedCategoryId(isExpanded ? null : cat.id)} className="text-slate-400 p-1 cursor-pointer">
-                          {isExpanded ? <LucideIcons.ChevronDown size={18} /> : <LucideIcons.ChevronRight size={18} />}
-                        </button>
+            {/* Lista de Grupos Ativos */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col gap-4">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100 flex justify-between items-center select-none">
+                <span>Grupos de Comunicação</span>
+                <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                  {categories.length + 1}
+                </span>
+              </h3>
+
+              <div className="flex flex-col gap-2 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
+                
+                {/* Item especial: BOTÕES DA RAIZ */}
+                <button
+                  type="button"
+                  onClick={() => setActiveCategoryId('raiz')}
+                  className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all text-left group cursor-pointer ${
+                    activeCategoryId === 'raiz'
+                      ? 'bg-blue-50 border-blue-300 text-blue-800 font-extrabold shadow-sm ring-1 ring-blue-200'
+                      : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 font-semibold'
+                  }`}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className="w-3 h-3 rounded-full bg-slate-400 border border-slate-300 shrink-0" />
+                    <span className="text-sm uppercase tracking-wide">Sem Grupo (Raiz)</span>
+                  </span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                    activeCategoryId === 'raiz' ? 'bg-blue-200 text-blue-900' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {cards.filter(c => !c.categoryId).length}
+                  </span>
+                </button>
+
+                {/* Categorias / Grupos Dinâmicos */}
+                {(() => {
+                  const sortedCats = [...categories].sort((a, b) => a.order - b.order);
+                  return sortedCats.map((cat, catIdx) => {
+                    const catCardsCount = cards.filter(c => c.categoryId === cat.id).length;
+                    const isSelected = activeCategoryId === cat.id;
+                    const isFirst = catIdx === 0;
+                    const isLast = catIdx === sortedCats.length - 1;
+
+                    return (
+                      <div
+                        key={cat.id}
+                        onClick={() => setActiveCategoryId(cat.id)}
+                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                          isSelected
+                            ? 'bg-blue-50 border-blue-300 text-blue-800 font-extrabold shadow-sm ring-1 ring-blue-200'
+                            : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-semibold'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 overflow-hidden mr-2">
+                          <span className={`w-3 h-3 rounded-full border border-slate-300 shrink-0 ${cat.color.split(' ')[0]}`} />
+                          <span className="text-sm uppercase tracking-wide truncate">{cat.label}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                            isSelected ? 'bg-blue-200 text-blue-900' : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {catCardsCount}
+                          </span>
+                        </div>
+
+                        {/* Ações do Grupo */}
+                        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveCategory(cat.id, 'up')}
+                            disabled={isFirst}
+                            className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-20 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Mover grupo para cima"
+                          >
+                            <LucideIcons.ArrowUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveCategory(cat.id, 'down')}
+                            disabled={isLast}
+                            className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-20 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Mover grupo para baixo"
+                          >
+                            <LucideIcons.ArrowDown size={14} />
+                          </button>
+                          <span className="w-px h-4 bg-slate-200 mx-0.5 shrink-0" />
+                          <button
+                            type="button"
+                            onClick={() => setEditingCategory(cat)}
+                            className="p-1 text-slate-400 hover:text-[#944a00] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Editar grupo"
+                          >
+                            <LucideIcons.Edit size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCategory(cat.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Excluir grupo"
+                          >
+                            <LucideIcons.Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    {isExpanded && (
-                      <div className="p-4 bg-slate-50/50 space-y-2">
-                        {catCards.length === 0
-                          ? <p className="text-xs text-slate-400 italic">Nenhum botão nesta categoria.</p>
-                          : catCards.map((card, idx) => {
-                              const cardIsFirst = idx === 0;
-                              const cardIsLast = idx === catCards.length - 1;
-                              return (
-                                <div key={card.id} className="flex items-center justify-between bg-white border border-slate-100 rounded-xl p-3 shadow-sm hover:border-slate-200 transition-colors">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center overflow-hidden border border-slate-200">
-                                      {card.imageSource.startsWith('data:image')
-                                        ? <img src={card.imageSource} alt={card.label} className="w-full h-full object-cover" />
-                                        : React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, { size: 20 })
-                                      }
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-bold text-slate-800">{card.label}</p>
-                                      <p className="text-[10px] text-slate-400">Ordem: {card.order}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <button onClick={() => handleMoveCard(card.id!, 'up')} disabled={cardIsFirst} className="p-2 text-slate-400 hover:text-blue-600 disabled:opacity-30 rounded-xl transition-colors cursor-pointer" type="button" title="Mover para cima">
-                                      <LucideIcons.ArrowUp size={16} />
-                                    </button>
-                                    <button onClick={() => handleMoveCard(card.id!, 'down')} disabled={cardIsLast} className="p-2 text-slate-400 hover:text-blue-600 disabled:opacity-30 rounded-xl transition-colors cursor-pointer" type="button" title="Mover para baixo">
-                                      <LucideIcons.ArrowDown size={16} />
-                                    </button>
-                                    <span className="w-px h-5 bg-slate-200 mx-1" />
-                                    <button onClick={() => setEditingCard(card)} className="p-2 text-[#944a00] hover:bg-orange-50 rounded-xl transition-colors cursor-pointer" type="button" title="Editar Card">
-                                      <LucideIcons.Edit size={16} />
-                                    </button>
-                                    <button onClick={() => handleDeleteCard(card.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer" type="button" title="Excluir Card">
-                                      <LucideIcons.Trash2 size={16} />
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })
-                        }
-                      </div>
-                    )}
-                  </div>
-                );
-              });
-            })()}
+                    );
+                  });
+                })()}
+
+              </div>
+            </div>
           </div>
-        </section>
+
+          {/* 👁️ COLUNA DIREITA: "Painel de Pré-visualização Visual" (60% da Largura) */}
+          <div className="w-full lg:w-[60%] flex flex-col gap-4 flex-grow">
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col flex-grow min-h-[550px] w-full">
+              
+              {/* Cabeçalho Dinâmico da Prancha */}
+              <div className="pb-4 border-b border-slate-100 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2 select-none">
+                    <LucideIcons.Eye className="text-blue-600" size={18} />
+                    Pré-visualização da Prancha
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5 select-none">
+                    {activeCategoryId === 'raiz' ? (
+                      <span>Visualizando: <strong className="text-slate-700 uppercase">Botões da Raiz</strong></span>
+                    ) : (
+                      <span>
+                        Visualizando: <strong className="text-slate-700 uppercase">Grupo &gt; {
+                          categories.find(c => c.id === activeCategoryId)?.label || 'Carregando...'
+                        }</strong>
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div className="text-[10px] text-slate-400 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 font-medium select-none">
+                  💡 Arraste os cards ou use as setas para reordenar
+                </div>
+              </div>
+
+              {/* Corpo da Pré-visualização */}
+              <div className="flex-grow flex flex-col justify-between">
+                {(() => {
+                  const activeCatId = activeCategoryId === 'raiz' ? undefined : activeCategoryId;
+                  const filteredCards = cards
+                    .filter(c => c.categoryId === activeCatId)
+                    .sort((a, b) => a.order - b.order);
+
+                  if (filteredCards.length === 0) {
+                    return (
+                      <div className="flex-grow flex flex-col items-center justify-center py-12 px-4 text-center select-none animate-fade-in">
+                        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-200 text-slate-300">
+                          <LucideIcons.Inbox size={36} className="opacity-70" />
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">Este grupo está vazio</h4>
+                        <p className="text-xs text-slate-500 max-w-sm leading-relaxed mb-4">
+                          Este grupo está vazio. Clique em <strong className="text-blue-600 uppercase">"Criar Novo Card"</strong> para adicionar cartões de comunicação a esta categoria.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pb-4">
+                      {filteredCards.map((card, idx) => {
+                        const isFirst = idx === 0;
+                        const isLast = idx === filteredCards.length - 1;
+
+                        return (
+                          <div
+                            key={card.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, card.id!)}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDragEnd={handleDragEnd}
+                            onDrop={(e) => handleDrop(e, card.id!)}
+                            className={`group relative aspect-square border-2 border-slate-200 rounded-3xl flex flex-col items-center justify-between p-3.5 shadow-sm transition-all hover:shadow-md hover:border-blue-400 select-none ${
+                              card.color || 'bg-white'
+                            } ${
+                              draggedCardId === card.id ? 'opacity-30 scale-95 border-dashed border-blue-500' : 'cursor-grab active:cursor-grabbing'
+                            }`}
+                          >
+                            {/* Barra de Ações Superior (Aparece no hover no desktop, visível em opacidade 80% no mobile) */}
+                            <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-white/95 backdrop-blur-xs rounded-xl p-0.5 border border-slate-150 shadow-sm gap-0.5" onClick={(e) => e.stopPropagation()}>
+                              {/* Setas de Reordenação (Touch Friendly) */}
+                              <div className="flex gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveCard(card.id!, 'up')}
+                                  disabled={isFirst}
+                                  className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-20 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                  title="Mover para esquerda"
+                                >
+                                  <LucideIcons.ChevronLeft size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveCard(card.id!, 'down')}
+                                  disabled={isLast}
+                                  className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-20 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                  title="Mover para direita"
+                                >
+                                  <LucideIcons.ChevronRight size={14} />
+                                </button>
+                              </div>
+
+                              {/* Ações normais de Edição/Exclusão */}
+                              <div className="flex gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCard(card)}
+                                  className="p-1 text-slate-500 hover:text-[#944a00] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                  title="Editar card"
+                                >
+                                  <LucideIcons.Edit size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCard(card.id)}
+                                  className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Excluir card"
+                                >
+                                  <LucideIcons.Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Mini-Card Thumbnail / Imagem ou Ícone */}
+                            <div className="flex-grow flex items-center justify-center w-full mt-4">
+                              <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center overflow-hidden border border-slate-150 p-1 shrink-0 select-none">
+                                {card.imageSource.startsWith('data:image') ? (
+                                  <img src={card.imageSource} alt={card.label} className="w-full h-full object-cover rounded-lg" />
+                                ) : (
+                                  React.createElement((LucideIcons as any)[card.imageSource] || LucideIcons.HelpCircle, {
+                                    className: 'text-[#944a00] w-8 h-8'
+                                  })
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Nome do Card */}
+                            <div className="text-center w-full truncate font-bold text-[11px] md:text-xs text-slate-800 uppercase tracking-wide shrink-0 pt-2 select-none">
+                              {card.label}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
+            </div>
+          </div>
+
+        </div>
       </main>
 
       {/* ═══ MODAL: Criar Novo Card ═══════════════════════════════════════════ */}
